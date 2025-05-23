@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import os
 import json
 from flask_cors import CORS
+from apscheduler.schedulers.background import BackgroundScheduler
+import re
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///E:/SIMS Analytics/backend/instance/SIMS_Analytics.db'
@@ -59,6 +61,16 @@ def fetch_exa():
     indian_and_bd_domains = [
         "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com", "thedailystar.net", "bdnews24.com", "jugantor.com", "kalerkantho.com", "samakal.com", "bd-pratidin.com", "dhakatribune.com", "banglanews24.com", "jagonews24.com", "ittefaq.com.bd", "mzamin.com", "newagebd.net", "thefinancialexpress.com.bd", "somoynews.tv", "channel24bd.tv", "dailyjanakantha.com", "theindependentbd.com", "banglatribune.com", "dhakapost.com", "risingbd.com", "dailyinqilab.com", "dailynayadiganta.com", "amadershomoy.com", "bbc.com", "reuters.com", "aljazeera.com", "apnews.com", "cnn.com", "nytimes.com", "theguardian.com", "france24.com", "dw.com"
     ]
+    # Source categorization
+    indian_sources = set([
+        "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com"
+    ])
+    bd_sources = set([
+        "thedailystar.net", "bdnews24.com", "jugantor.com", "kalerkantho.com", "samakal.com", "bd-pratidin.com", "dhakatribune.com", "banglanews24.com", "jagonews24.com", "ittefaq.com.bd", "mzamin.com", "newagebd.net", "thefinancialexpress.com.bd", "somoynews.tv", "channel24bd.tv", "dailyjanakantha.com", "theindependentbd.com", "banglatribune.com", "dhakapost.com", "risingbd.com", "dailyinqilab.com", "dailynayadiganta.com", "amadershomoy.com"
+    ])
+    intl_sources = set([
+        "bbc.com", "reuters.com", "aljazeera.com", "apnews.com", "cnn.com", "nytimes.com", "theguardian.com", "france24.com", "dw.com"
+    ])
     result = exa.search_and_contents(
         "Bangladesh-related news coverage by Indian Media",
         category="news",
@@ -66,60 +78,54 @@ def fetch_exa():
         livecrawl="always",
         text=True,
         num_results=100,
-        include_domains=indian_and_bd_domains,
+        include_domains=list(indian_and_bd_domains),
         extras={"links": 1},
         summary={
-            'query': 'For the Indian news article at {url}: Extract "source" (publisher domain), Determine "sentiment" (Positive/Negative/Neutral), Fact-check its main claim by comparing against:    • Bangladeshi outlets (thedailystar.net, bdnews24.com, jugantor.com, kalerkantho.com, samakal.com, bd-pratidin.com, dhakatribune.com, banglanews24.com, jagonews24.com, ittefaq.com.bd, mzamin.com, newagebd.net, thefinancialexpress.com.bd, somoynews.tv, channel24bd.tv, dailyjanakantha.com, theindependentbd.com, banglatribune.com, dhakapost.com, risingbd.com, dailyinqilab.com, dailynayadiganta.com, amadershomoy.com)    • International outlets (bbc.com, reuters.com, aljazeera.com, apnews.com, cnn.com, nytimes.com, theguardian.com, france24.com, dw.com)    Produce a verdict ("factCheck"): True, False, or Mixed. 4. In "bangladeshiMedia", summarize how Bangladeshi outlets covered it, or write "Not covered" if none did. 5. In "internationalMedia", summarize how international outlets covered it, or write "Not covered" if none did. 6. Under "bangladeshiMatches", list up to 3 matching BD articles as objects with title, source, and url; if none found, return an empty array. 7. Under "internationalMatches", list up to 3 matching international articles similarly; if none found, return an empty array.',
+            'query': 'For the Indian news article at {url}: Extract "source" (publisher domain), Determine "sentiment" (Positive/Negative/Neutral/Cautious), Fact-check its main claim by comparing against:    • Bangladeshi outlets (thedailystar.net, bdnews24.com, jugantor.com, kalerkantho.com, samakal.com, bd-pratidin.com, dhakatribune.com, banglanews24.com, jagonews24.com, ittefaq.com.bd, mzamin.com, newagebd.net, thefinancialexpress.com.bd, somoynews.tv, channel24bd.tv, dailyjanakantha.com, theindependentbd.com, banglatribune.com, dhakapost.com, risingbd.com, dailyinqilab.com, dailynayadiganta.com, amadershomoy.com)    • International outlets (bbc.com, reuters.com, aljazeera.com, apnews.com, cnn.com, nytimes.com, theguardian.com, france24.com, dw.com)    Produce a verdict ("fact_check"): True, False, Mixed, or Unverified. 4. Infer a category for the article (e.g., Politics, Economy, Health, etc.). 5. In "comparison", summarize how Bangladeshi and international outlets covered it, or write "Not covered" if none did. 6. Under "bangladeshi_matches" and "international_matches", list up to 3 matching articles as objects with title, source, and url; if none found, return an empty array.',
             'schema': {
-                'summary': {
-                    'prompt': 'For the Indian news article at {url}:\n1. Extract "source" (publisher domain).\n2. Determine "sentiment" (Positive/Negative/Neutral).\n3. Fact-check its main claim by comparing against:\n   • Bangladeshi outlets (thedailystar.net, bdnews24.com, jugantor.com, kalerkantho.com, samakal.com, bd-pratidin.com, dhakatribune.com, banglanews24.com, jagonews24.com, ittefaq.com.bd, mzamin.com, newagebd.net, thefinancialexpress.com.bd, somoynews.tv, channel24bd.tv, dailyjanakantha.com, theindependentbd.com, banglatribune.com, dhakapost.com, risingbd.com, dailyinqilab.com, dailynayadiganta.com, amadershomoy.com)\n   • International outlets (bbc.com, reuters.com, aljazeera.com, apnews.com, cnn.com, nytimes.com, theguardian.com, france24.com, dw.com)\n   Produce a verdict ("factCheck"): True, False, or Mixed.\n4. In "bangladeshiMedia", summarize how Bangladeshi outlets covered it, or write "Not covered" if none did.\n5. In "internationalMedia", summarize how international outlets covered it, or write "Not covered" if none did.\n6. Under "bangladeshiMatches", list up to 3 matching BD articles as objects with title, source, and url; if none found, return an empty array.\n7. Under "internationalMatches", list up to 3 matching international articles similarly; if none found, return an empty array.',
-                    'stringify': False,
-                    'schema': {
+                'type': 'object',
+                'properties': {
+                    'source': {'type': 'string'},
+                    'sentiment': {'type': 'string', 'enum': ['Positive', 'Negative', 'Neutral', 'Cautious']},
+                    'fact_check': {'type': 'string', 'enum': ['True', 'False', 'Mixed', 'Unverified']},
+                    'category': {'type': 'string'},
+                    'comparison': {
                         'type': 'object',
                         'properties': {
-                            'source': {'type': 'string', 'description': 'Indian publisher domain'},
-                            'sentiment': {'type': 'string', 'description': 'Overall sentiment (Positive, Negative, Neutral)'},
-                            'fact_check': {'type': 'string', 'description': 'Verdict after comparison (True, False, Mixed)'},
-                            'comparison': {
-                                'type': 'object',
-                                'properties': {
-                                    'bangladeshi_media': {'type': 'string', 'description': "Summary of BD coverage or 'Not covered'"},
-                                    'international_media': {'type': 'string', 'description': "Summary of Intl coverage or 'Not covered'"}
-                                },
-                                'required': ['bangladeshi_media', 'international_media']
-                            },
-                            'bangladeshi_matches': {
-                                'type': 'array',
-                                'description': 'List of BD articles used for comparison (0–3 items)',
-                                'min_items': 0,
-                                'items': {
-                                    'type': 'object',
-                                    'properties': {
-                                        'title': {'type': 'string'},
-                                        'source': {'type': 'string'},
-                                        'url': {'type': 'string', 'format': 'uri'}
-                                    },
-                                    'required': ['title', 'source']
-                                }
-                            },
-                            'international_matches': {
-                                'type': 'array',
-                                'description': 'List of Intl articles used for comparison (0–3 items)',
-                                'min_items': 0,
-                                'items': {
-                                    'type': 'object',
-                                    'properties': {
-                                        'title': {'type': 'string'},
-                                        'source': {'type': 'string'},
-                                        'url': {'type': 'string', 'format': 'uri'}
-                                    },
-                                    'required': ['title', 'source']
-                                }
-                            }
+                            'bangladeshi_media': {'type': 'string'},
+                            'international_media': {'type': 'string'}
                         },
-                        'required': ['source', 'sentiment', 'fact_check', 'comparison', 'bangladeshi_matches', 'international_matches']
+                        'required': ['bangladeshi_media', 'international_media']
+                    },
+                    'bangladeshi_matches': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'title': {'type': 'string'},
+                                'source': {'type': 'string'},
+                                'url': {'type': 'string'}
+                            },
+                            'required': ['title', 'source', 'url']
+                        }
+                    },
+                    'international_matches': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'title': {'type': 'string'},
+                                'source': {'type': 'string'},
+                                'url': {'type': 'string'}
+                            },
+                            'required': ['title', 'source', 'url']
+                        }
                     }
-                }
+                },
+                'required': [
+                    'source', 'sentiment', 'fact_check', 'category',
+                    'comparison', 'bangladeshi_matches', 'international_matches'
+                ]
             }
         }
     )
@@ -139,53 +145,78 @@ def fetch_exa():
             if not summary:
                 print("No summary available, skipping.")
                 continue
+            # Normalize and validate fields
+            def get_field(s, *keys, default=None):
+                for k in keys:
+                    if k in s:
+                        return s[k]
+                return default
             art = Article.query.filter_by(url=item.url).first() or Article(url=item.url)
             art.title = item.title
             art.published_at = datetime.datetime.fromisoformat(item.published_date.replace('Z','+00:00'))
             art.author = getattr(item, 'author', None)
-            # Extract fields from summary dict, fallback to defaults
-            if isinstance(summary, dict):
-                art.source = summary.get('source', 'Unknown')
-                art.sentiment = summary.get('sentiment', 'neutral')
-                art.fact_check = summary.get('fact_check', 'unverified')
-                comp = summary.get('comparison', {})
-                art.bd_summary = comp.get('bangladeshi_media') if comp else None
-                art.int_summary = comp.get('international_media') if comp else None
-                bd_matches = summary.get('bangladeshi_matches', [])
-                intl_matches = summary.get('international_matches', [])
-            elif isinstance(summary, list) and summary and isinstance(summary[0], dict):
-                # Sometimes summary is a list of dicts
-                s = summary[0]
-                art.source = s.get('source', 'Unknown')
-                art.sentiment = s.get('sentiment', 'neutral')
-                art.fact_check = s.get('factCheck', 'unverified')
-                art.bd_summary = s.get('bangladeshiMedia')
-                art.int_summary = s.get('internationalMedia')
-                bd_matches = s.get('bangladeshiMatches', [])
-                intl_matches = s.get('internationalMatches', [])
+            # Use Exa's category if present, otherwise infer
+            category = get_field(summary, 'category', default=None)
+            if not category or category == "General":
+                category = infer_category(item.title, getattr(item, 'text', None))
+            # Source normalization
+            source = get_field(summary, 'source', default='Unknown')
+            if source.lower() in indian_sources:
+                art.source = source
+            elif source.lower() in bd_sources:
+                art.source = source
+            elif source.lower() in intl_sources:
+                art.source = source
             else:
-                art.source = 'Unknown'
-                art.sentiment = 'neutral'
-                art.fact_check = 'unverified'
-                art.bd_summary = None
-                art.int_summary = None
+                art.source = 'Other'
+            # Sentiment normalization
+            sentiment = get_field(summary, 'sentiment', default='Neutral').capitalize()
+            if sentiment not in ['Positive', 'Negative', 'Neutral', 'Cautious']:
+                sentiment = 'Neutral'
+            art.sentiment = sentiment
+            # Fact check normalization
+            fact_check = get_field(summary, 'fact_check', 'factCheck', default='Unverified').capitalize()
+            if fact_check not in ['True', 'False', 'Mixed', 'Unverified']:
+                fact_check = 'Unverified'
+            art.fact_check = fact_check
+            # Summaries
+            comp = get_field(summary, 'comparison', default={})
+            art.bd_summary = get_field(comp, 'bangladeshi_media', 'bangladeshiMedia', default='Not covered')
+            art.int_summary = get_field(comp, 'international_media', 'internationalMedia', default='Not covered')
+            # Matches (always arrays)
+            bd_matches = get_field(summary, 'bangladeshi_matches', 'bangladeshiMatches', default=[])
+            intl_matches = get_field(summary, 'international_matches', 'internationalMatches', default=[])
+            if not isinstance(bd_matches, list):
                 bd_matches = []
+            if not isinstance(intl_matches, list):
                 intl_matches = []
             art.image = getattr(item, 'image', None)
             art.favicon = getattr(item, 'favicon', None)
             art.score = getattr(item, 'score', None)
             art.extras = json.dumps(getattr(item, 'extras', {}))
             art.full_text = getattr(item, 'text', None)
-            art.summary_json = json.dumps(summary, default=str) if summary else None
+            # Store only the normalized summary
+            art.summary_json = json.dumps({
+                'source': art.source,
+                'sentiment': art.sentiment,
+                'fact_check': art.fact_check,
+                'category': category,
+                'comparison': {
+                    'bangladeshi_media': art.bd_summary,
+                    'international_media': art.int_summary
+                },
+                'bangladeshi_matches': bd_matches,
+                'international_matches': intl_matches
+            }, default=str)
             db.session.add(art)
             db.session.commit()
             # Store matches
             BDMatch.query.filter_by(article_id=art.id).delete()
             for m in bd_matches[:3]:
-                db.session.add(BDMatch(article_id=art.id, **m))
+                db.session.add(BDMatch(article_id=art.id, title=m.get('title', ''), source=m.get('source', ''), url=m.get('url', '')))
             IntMatch.query.filter_by(article_id=art.id).delete()
             for m in intl_matches[:3]:
-                db.session.add(IntMatch(article_id=art.id, **m))
+                db.session.add(IntMatch(article_id=art.id, title=m.get('title', ''), source=m.get('source', ''), url=m.get('url', '')))
             db.session.commit()
             print(f"Committed Article: {art.id}")
         except Exception as e:
@@ -293,6 +324,31 @@ def get_article(id):
         ]
     })
 
+def infer_category(title, text):
+    title = (title or "").lower()
+    text = (text or "").lower()
+    content = f"{title} {text}"
+    category_keywords = [
+        ("Health", ["covid", "health", "hospital", "doctor", "vaccine", "disease", "virus", "medicine", "medical"]),
+        ("Politics", ["election", "minister", "government", "parliament", "politics", "cabinet", "bjp", "congress", "policy", "bill", "law"]),
+        ("Economy", ["economy", "gdp", "trade", "export", "import", "inflation", "market", "investment", "finance", "stock", "business"]),
+        ("Education", ["school", "university", "education", "student", "exam", "teacher", "college", "admission"]),
+        ("Security", ["security", "terror", "attack", "military", "army", "defence", "border", "police", "crime"]),
+        ("Sports", ["cricket", "football", "olympic", "match", "tournament", "player", "goal", "score", "team", "league"]),
+        ("Technology", ["tech", "ai", "robot", "software", "hardware", "internet", "startup", "app", "digital", "cyber"]),
+        ("Environment", ["climate", "environment", "pollution", "weather", "rain", "flood", "earthquake", "disaster", "wildlife"]),
+        ("International", ["us", "china", "pakistan", "bangladesh", "united nations", "global", "foreign", "international", "world"]),
+        ("Culture", ["festival", "culture", "art", "music", "movie", "film", "heritage", "tradition", "literature"]),
+        ("Science", ["science", "research", "study", "experiment", "discovery", "space", "nasa", "isro"]),
+        ("Business", ["business", "company", "corporate", "industry", "merger", "acquisition", "startup", "entrepreneur"]),
+        ("Crime", ["crime", "theft", "murder", "fraud", "scam", "arrest", "court", "trial"]),
+    ]
+    for cat, keywords in category_keywords:
+        for kw in keywords:
+            if re.search(rf'\\b{re.escape(kw)}\\b', content):
+                return cat
+    return "General"
+
 @app.route('/api/dashboard')
 def dashboard():
     def normalize_sentiment(s):
@@ -312,23 +368,38 @@ def dashboard():
             return 'Cautious'
         return 'Neutral'
 
+    # Get category filter from query params
+    filter_category = request.args.get('category')
     # Latest Indian News Monitoring (limit 20, Indian sources only)
     indian_sources = [
         "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com"
     ]
-    latest_news = Article.query.filter(Article.source.in_(indian_sources)).order_by(Article.published_at.desc()).limit(20).all()
-    latest_news_data = [
-        {
+    latest_news = Article.query.filter(Article.source.in_(indian_sources)).order_by(Article.published_at.desc()).all()
+    latest_news_data = []
+    for a in latest_news:
+        category = None
+        if a.extras:
+            try:
+                extras_dict = json.loads(a.extras) if isinstance(a.extras, str) else a.extras
+                category = extras_dict.get('category')
+            except Exception:
+                category = None
+        if not category or category == "General":
+            category = infer_category(a.title, a.full_text)
+        if filter_category and category != filter_category:
+            continue
+        latest_news_data.append({
             'date': a.publishedDate if hasattr(a, 'publishedDate') else (a.published_at.isoformat() if a.published_at else None),
             'headline': a.title,
             'source': a.source if a.source and a.source.lower() != 'unknown' else 'Other',
-            'category': (json.loads(a.extras).get('category') if a.extras else None) or 'General',
+            'category': category,
             'sentiment': normalize_sentiment(a.sentiment),
+            'fact_check': a.fact_check,
             'detailsUrl': a.url,
             'id': a.id
-        }
-        for a in latest_news
-    ]
+        })
+    # Only return the latest 20 after filtering
+    latest_news_data = latest_news_data[:20]
 
     # Timeline of Key Events (use major headlines/dates)
     timeline_events = [
@@ -426,6 +497,14 @@ def dashboard():
         'implications': implications,
         'predictions': predictions
     })
+
+def scheduled_fetch():
+    with app.app_context():
+        fetch_exa()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(scheduled_fetch, 'interval', days=1)
+scheduler.start()
 
 if __name__ == '__main__':
     app.run(debug=True) 

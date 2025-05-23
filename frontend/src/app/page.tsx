@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { format } from "date-fns";
 import { Line, Pie, Bar } from "react-chartjs-2";
@@ -16,6 +16,7 @@ import {
   ArcElement,
   BarElement,
 } from "chart.js";
+import { FaCheckCircle, FaExclamationCircle, FaRegNewspaper, FaChartLine, FaCloud, FaNewspaper, FaGlobe } from "react-icons/fa";
 
 ChartJS.register(
   CategoryScale,
@@ -40,17 +41,23 @@ export default function Dashboard() {
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [tableLoading, setTableLoading] = useState(false);
+  const [category, setCategory] = useState<string>("");
+  const [categories, setCategories] = useState<string[]>([]);
 
   // Fetch dashboard data
-  const fetchDashboard = async (range = dateRange) => {
+  const fetchDashboard = async (range = dateRange, cat = category) => {
     setLoading(true);
     setError(null);
     try {
       const params: any = {};
       if (range.start) params.start = range.start;
       if (range.end) params.end = range.end;
+      if (cat) params.category = cat;
       const response = await axios.get("/api/dashboard", { params });
       setData(response.data);
+      // Extract unique categories from the latest news for the dropdown
+      const allCats = (response.data.latestIndianNews || []).map((item: any) => item.category).filter(Boolean);
+      setCategories(Array.from(new Set(["", ...allCats])));
     } catch (err) {
       setError("Failed to fetch dashboard data.");
     } finally {
@@ -147,8 +154,60 @@ export default function Dashboard() {
     ],
   };
 
+  // Category color map
+  const categoryColorMap: Record<string, string> = {
+    Health: "bg-green-100 text-green-700",
+    Politics: "bg-blue-100 text-blue-700",
+    Economy: "bg-yellow-100 text-yellow-700",
+    Education: "bg-purple-100 text-purple-700",
+    Security: "bg-red-100 text-red-700",
+    Sports: "bg-indigo-100 text-indigo-700",
+    Technology: "bg-pink-100 text-pink-700",
+    Environment: "bg-emerald-100 text-emerald-700",
+    International: "bg-cyan-100 text-cyan-700",
+    Culture: "bg-orange-100 text-orange-700",
+    Science: "bg-lime-100 text-lime-700",
+    Business: "bg-teal-100 text-teal-700",
+    Crime: "bg-gray-200 text-gray-700",
+    General: "bg-gray-100 text-gray-700",
+  };
+
+  const factCheckColor: Record<string, string> = {
+    True: "bg-green-100 text-green-700",
+    False: "bg-red-100 text-red-700",
+    Mixed: "bg-yellow-100 text-yellow-700",
+    Unverified: "bg-gray-100 text-gray-700",
+  };
+
   // Responsive grid classes
   const gridClass = "grid grid-cols-1 md:grid-cols-3 gap-6 mb-8";
+
+  // --- New: Stats and Word Cloud helpers ---
+  const getSentimentStats = (toneSentiment: any) => {
+    return [
+      { label: "Positive", value: toneSentiment.Positive || 0, color: "bg-green-100 text-green-700", icon: <FaCheckCircle className="text-green-500" /> },
+      { label: "Negative", value: toneSentiment.Negative || 0, color: "bg-red-100 text-red-700", icon: <FaExclamationCircle className="text-red-500" /> },
+      { label: "Neutral", value: toneSentiment.Neutral || 0, color: "bg-gray-100 text-gray-700", icon: <FaRegNewspaper className="text-gray-500" /> },
+      { label: "Cautious", value: toneSentiment.Cautious || 0, color: "bg-yellow-100 text-yellow-700", icon: <FaRegNewspaper className="text-yellow-500" /> },
+    ];
+  };
+  const getVerificationStats = (factChecking: any) => {
+    return [
+      { label: "Verified", value: factChecking.verificationStatus === "Verified" ? factChecking.bangladeshiAgreement : 0, color: "bg-green-100 text-green-700" },
+      { label: "Unverified", value: factChecking.verificationStatus === "Unverified" ? factChecking.bangladeshiAgreement : 0, color: "bg-gray-100 text-gray-700" },
+    ];
+  };
+  const getTopKeywords = (news: any[]) => {
+    const stopwords = ["the", "of", "in", "and", "to", "a", "on", "for", "as", "is", "at", "by", "an", "with", "from", "be", "it", "that", "this", "will", "are", "has", "after", "was", "not", "but", "or", "its", "his", "her", "their", "he", "she", "they", "we", "you", "i", "have", "had", "were", "which", "who", "what", "when", "where", "how", "why", "all", "more", "new", "about", "into", "out", "up", "over", "than", "so", "if", "no", "do", "does", "did", "can", "just", "now", "may", "also", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+    const freq: Record<string, number> = {};
+    news.forEach(item => {
+      (item.headline || "").split(/\W+/).forEach(word => {
+        const w = word.toLowerCase();
+        if (w.length > 2 && !stopwords.includes(w)) freq[w] = (freq[w] || 0) + 1;
+      });
+    });
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 30);
+  };
 
   if (loading) {
     return (
@@ -183,7 +242,27 @@ export default function Dashboard() {
 
       {/* Latest Indian News Monitoring */}
       <div className="card mb-8">
-        <h2 className="text-2xl font-bold mb-4">Latest Indian News Monitoring</h2>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
+          <h2 className="text-2xl font-bold">Latest Indian News Monitoring</h2>
+          <div className="flex gap-2 items-center">
+            <label htmlFor="category" className="font-medium">Category:</label>
+            <select
+              id="category"
+              className="border rounded px-2 py-1"
+              value={category}
+              onChange={async (e) => {
+                setCategory(e.target.value);
+                setPage(1);
+                await fetchDashboard(dateRange, e.target.value);
+              }}
+            >
+              <option value="">All</option>
+              {categories.filter((cat) => cat && cat !== "").map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -194,6 +273,7 @@ export default function Dashboard() {
                   { label: "Source", key: "source" },
                   { label: "Category", key: "category" },
                   { label: "Sentiment", key: "sentiment" },
+                  { label: "Fact Checked", key: "fact_check" },
                   { label: "Details", key: "detailsUrl" },
                 ].map((col) => (
                   <th
@@ -212,7 +292,7 @@ export default function Dashboard() {
             <tbody>
               {paginatedNews().length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-6 text-gray-500">
+                  <td colSpan={7} className="text-center py-6 text-gray-500">
                     No news articles found for the selected range.
                   </td>
                 </tr>
@@ -221,19 +301,24 @@ export default function Dashboard() {
                   <tr key={item.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">{item.date ? format(new Date(item.date), "MMM d, yyyy") : "-"}</td>
                     <td className="py-3 px-4 max-w-xs truncate" title={item.headline}>
-                      <a href={item.detailsUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">
+                      <a href={`/news/${item.id}`} className="text-primary-600 underline">
                         {item.headline.length > 60 ? item.headline.slice(0, 60) + "..." : item.headline}
                       </a>
                     </td>
                     <td className="py-3 px-4">{item.source}</td>
-                    <td className="py-3 px-4">{item.category || "-"}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryColorMap[item.category] || categoryColorMap["General"]}`}>{item.category}</span>
+                    </td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${item.sentiment === "Positive" ? "bg-green-100 text-green-700" : item.sentiment === "Negative" ? "bg-red-100 text-red-700" : item.sentiment === "Cautious" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
                         {item.sentiment}
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <a href={item.detailsUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">View</a>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${factCheckColor[item.fact_check] || factCheckColor["Unverified"]}`}>{item.fact_check}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <a href={`/news/${item.id}`} className="text-primary-600 underline">View</a>
                     </td>
                   </tr>
                 ))
@@ -369,6 +454,81 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* New: Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fadein">
+        <div className="card flex flex-col items-center justify-center text-center">
+          <FaNewspaper className="text-3xl text-primary-600 mb-1" />
+          <div className="text-2xl font-bold">{data.latestIndianNews.length}</div>
+          <div className="text-gray-500 text-sm">Total Articles</div>
+        </div>
+        {getSentimentStats(data.toneSentiment).map((s) => (
+          <div key={s.label} className={`card flex flex-col items-center justify-center text-center ${s.color}`}>
+            {s.icon}
+            <div className="text-2xl font-bold">{s.value}</div>
+            <div className="text-gray-500 text-sm">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* New: Top Sources Bar */}
+      <div className="card mb-8 animate-fadein">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaGlobe className="text-primary-600" />Top Sources</h2>
+        <div className="flex flex-wrap gap-4 items-center">
+          {data.keySources.map((src: string, idx: number) => (
+            <div key={src} className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 shadow-sm hover:bg-primary-50 transition">
+              <img src={`https://www.google.com/s2/favicons?domain=${src}`} alt="favicon" className="w-5 h-5" />
+              <span className="font-medium">{src}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* New: Sentiment Trend Line Chart */}
+      {data.latestIndianNews.length > 5 && (
+        <div className="card mb-8 animate-fadein">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaChartLine className="text-primary-600" />Sentiment Trend</h2>
+          <Line
+            data={{
+              labels: data.latestIndianNews.map((n: any) => n.date ? format(new Date(n.date), "MMM d") : "-"),
+              datasets: [
+                {
+                  label: "Sentiment Score (Pos=1, Neutral=0, Neg=-1, Cautious=0.5)",
+                  data: data.latestIndianNews.map((n: any) => n.sentiment === "Positive" ? 1 : n.sentiment === "Negative" ? -1 : n.sentiment === "Cautious" ? 0.5 : 0),
+                  borderColor: "#0ea5e9",
+                  backgroundColor: "#bae6fd",
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 3,
+                },
+              ],
+            }}
+            options={{
+              plugins: { legend: { display: false } },
+              scales: { y: { min: -1, max: 1, ticks: { stepSize: 0.5 } } },
+              responsive: true,
+            }}
+          />
+        </div>
+      )}
+
+      {/* New: Word Cloud */}
+      <div className="card mb-8 animate-fadein">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaCloud className="text-primary-600" />Headline Word Cloud</h2>
+        <div className="flex flex-wrap gap-2 items-end">
+          {getTopKeywords(data.latestIndianNews).map(function(entry: [string, number]) {
+            const [word, count] = entry;
+            return (
+              <span key={word} style={{ fontSize: `${12 + count * 2}px` }} className="font-semibold text-primary-700 hover:text-primary-500 transition cursor-pointer" title={`Count: ${count}`}>{word}</span>
+            );
+          })}
+        </div>
+      </div>
+
+      <style jsx global>{`
+        .animate-fadein { animation: fadein 0.7s; }
+        @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+      `}</style>
     </div>
   );
 } 
