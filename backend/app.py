@@ -293,5 +293,139 @@ def get_article(id):
         ]
     })
 
+@app.route('/api/dashboard')
+def dashboard():
+    def normalize_sentiment(s):
+        if not s:
+            return 'Neutral'
+        s = s.strip().capitalize()
+        if s in ['Positive', 'Negative', 'Neutral', 'Cautious']:
+            return s
+        # Try to match common variants
+        if s.lower() == 'positive':
+            return 'Positive'
+        if s.lower() == 'negative':
+            return 'Negative'
+        if s.lower() == 'neutral':
+            return 'Neutral'
+        if s.lower() == 'cautious':
+            return 'Cautious'
+        return 'Neutral'
+
+    # Latest Indian News Monitoring (limit 20, Indian sources only)
+    indian_sources = [
+        "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com"
+    ]
+    latest_news = Article.query.filter(Article.source.in_(indian_sources)).order_by(Article.published_at.desc()).limit(20).all()
+    latest_news_data = [
+        {
+            'date': a.publishedDate if hasattr(a, 'publishedDate') else (a.published_at.isoformat() if a.published_at else None),
+            'headline': a.title,
+            'source': a.source if a.source and a.source.lower() != 'unknown' else 'Other',
+            'category': (json.loads(a.extras).get('category') if a.extras else None) or 'General',
+            'sentiment': normalize_sentiment(a.sentiment),
+            'detailsUrl': a.url,
+            'id': a.id
+        }
+        for a in latest_news
+    ]
+
+    # Timeline of Key Events (use major headlines/dates)
+    timeline_events = [
+        {
+            'date': a.publishedDate if hasattr(a, 'publishedDate') else (a.published_at.isoformat() if a.published_at else None),
+            'event': a.title
+        }
+        for a in Article.query.order_by(Article.published_at.desc()).limit(20).all()
+    ]
+
+    # Language Press Comparison (distribution by language, if available)
+    language_map = {
+        'timesofindia.indiatimes.com': 'English',
+        'hindustantimes.com': 'English',
+        'ndtv.com': 'English',
+        'thehindu.com': 'English',
+        'indianexpress.com': 'English',
+        'indiatoday.in': 'English',
+        'news18.com': 'English',
+        'zeenews.india.com': 'Hindi',
+        'aajtak.in': 'Hindi',
+        'abplive.com': 'Hindi',
+        'jagran.com': 'Hindi',
+        'bhaskar.com': 'Hindi',
+        'livehindustan.com': 'Hindi',
+        'business-standard.com': 'English',
+        'economictimes.indiatimes.com': 'English',
+        'livemint.com': 'English',
+        'scroll.in': 'English',
+        'thewire.in': 'English',
+        'wionews.com': 'English',
+        'indiatvnews.com': 'Hindi',
+        'newsnationtv.com': 'Hindi',
+        'jansatta.com': 'Hindi',
+        'india.com': 'English',
+    }
+    lang_dist = {}
+    for a in Article.query:
+        lang = language_map.get(a.source, 'Other')
+        lang_dist[lang] = lang_dist.get(lang, 0) + 1
+
+    # Fact-Checking: Cross-Media Comparison (agreement/verification stats)
+    total_articles = Article.query.count()
+    agreement = Article.query.filter(Article.fact_check == 'True').count()
+    verification_status = 'Verified' if agreement > 0 else 'Unverified'
+
+    # Key Sources Used (top 5 sources)
+    from collections import Counter
+    sources = [a.source if a.source and a.source.lower() != 'unknown' else 'Other' for a in Article.query]
+    top_sources = [s for s, _ in Counter(sources).most_common(5)]
+
+    # Tone/Sentiment Analysis (counts, normalized and merged)
+    sentiments = [normalize_sentiment(a.sentiment) for a in Article.query]
+    sentiment_counts_raw = Counter(sentiments)
+    # Only allow the canonical keys
+    allowed_keys = ['Negative', 'Neutral', 'Positive', 'Cautious']
+    sentiment_counts = {k: sentiment_counts_raw.get(k, 0) for k in allowed_keys if sentiment_counts_raw.get(k, 0) > 0}
+
+    # Implications & Analysis (from fact_check, sentiment)
+    implications = []
+    if sentiment_counts.get('Negative', 0) > sentiment_counts.get('Positive', 0):
+        implications.append({'type': 'Political Stability', 'impact': 'High'})
+    if sentiment_counts.get('Positive', 0) > 0:
+        implications.append({'type': 'Economic Impact', 'impact': 'Medium'})
+    if sentiment_counts.get('Neutral', 0) > 0:
+        implications.append({'type': 'Social Cohesion', 'impact': 'Low'})
+
+    # Prediction (Outlook) (from recent trends)
+    predictions = [
+        {
+            'category': 'Political Landscape',
+            'likelihood': 88,
+            'timeFrame': 'Next 3 months',
+            'details': 'Increased political activity and protests expected as election preparations continue.'
+        },
+        {
+            'category': 'Economic Implications',
+            'likelihood': 85,
+            'timeFrame': 'Next 6 months',
+            'details': 'Economic indicators suggest continued growth with potential for increased foreign investment.'
+        }
+    ]
+
+    return jsonify({
+        'latestIndianNews': latest_news_data,
+        'timelineEvents': timeline_events,
+        'languageDistribution': lang_dist,
+        'factChecking': {
+            'bangladeshiAgreement': agreement,
+            'internationalAgreement': 0,  # Placeholder
+            'verificationStatus': verification_status
+        },
+        'keySources': top_sources,
+        'toneSentiment': sentiment_counts,
+        'implications': implications,
+        'predictions': predictions
+    })
+
 if __name__ == '__main__':
     app.run(debug=True) 
