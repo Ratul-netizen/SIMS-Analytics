@@ -103,7 +103,19 @@ export default function NewsDetail() {
   return (
     <div className="animate-fadein">
       <div className="max-w-4xl mx-auto px-2 md:px-6 py-8">
-        <button className="flex items-center gap-2 mb-6 px-5 py-2 rounded bg-primary-600 text-white font-semibold hover:bg-primary-700 shadow transition" onClick={() => router.push("/")}> <FaChevronLeft /> Back to Dashboard</button>
+        <div className="flex gap-4 mb-6">
+          <button className="flex items-center gap-2 px-5 py-2 rounded bg-primary-600 text-white font-semibold hover:bg-primary-700 shadow transition" onClick={() => router.push("/")}> <FaChevronLeft /> Back to Dashboard</button>
+          {data.url && (
+            <a
+              href={data.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-5 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow transition"
+            >
+              <FaLink /> View Original
+            </a>
+          )}
+        </div>
         <div className="rounded-xl shadow-lg bg-white overflow-hidden mb-8">
           {/* Header with image background */}
           <div className="relative h-48 md:h-64 flex items-end bg-gray-100">
