@@ -18,6 +18,7 @@ import {
 } from "chart.js";
 import { FaCheckCircle, FaExclamationCircle, FaRegNewspaper, FaChartLine, FaCloud, FaNewspaper, FaGlobe } from "react-icons/fa";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import ReactWordcloud from 'react-wordcloud';
 
 ChartJS.register(
   CategoryScale,
@@ -365,13 +366,23 @@ export default function Dashboard() {
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryColorMap[(item.category && typeof item.category === 'string' ? (item.category.charAt(0).toUpperCase() + item.category.slice(1)) : 'General')] || categoryColorMap['General']}`}>{item.category ? (item.category.charAt(0).toUpperCase() + item.category.slice(1)) : 'General'}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${item.sentiment ? (item.sentiment === 'Positive' ? 'bg-green-100 text-green-700' : item.sentiment === 'Negative' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700') : 'bg-gray-100 text-gray-700'}`}>{item.sentiment || 'Neutral'}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold shadow-sm
+                        ${item.sentiment === 'Positive' ? 'bg-green-100 text-green-700 border border-green-300' : ''}
+                        ${item.sentiment === 'Negative' ? 'bg-red-100 text-red-700 border border-red-300' : ''}
+                        ${item.sentiment === 'Neutral' ? 'bg-blue-100 text-blue-700 border border-blue-300' : ''}
+                        ${item.sentiment === 'Cautious' ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' : ''}
+                        ${!item.sentiment ? 'bg-gray-100 text-gray-700 border border-gray-300' : ''}
+                      `}>
+                        {item.sentiment || 'Neutral'}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${item.fact_check ? factCheckColor[item.fact_check] || 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'}`}>{item.fact_check || 'Unverified'}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <a href={`/news/${item.id}`} className="text-blue-600 underline">View</a>
+                      <a href={`/news/${item.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-primary-600 text-white font-semibold shadow hover:bg-primary-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary-400" title="View details">
+                        <FaRegNewspaper className="text-base" /> View
+                      </a>
                     </td>
                   </tr>
                 ))
@@ -379,6 +390,28 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+        {/* Pagination Bar */}
+        {data.latestIndianNews && data.latestIndianNews.length > 0 && (
+          <div className="flex justify-end items-center mt-4">
+            <button
+              className="px-4 py-2 rounded-l bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 disabled:opacity-50"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 bg-white border-t border-b text-gray-700 font-medium">
+              Page {page} of {Math.ceil(data.latestIndianNews.length / PAGE_SIZE)}
+            </span>
+            <button
+              className="px-4 py-2 rounded-r bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 disabled:opacity-50"
+              onClick={() => setPage(page + 1)}
+              disabled={page >= Math.ceil(data.latestIndianNews.length / PAGE_SIZE)}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
       {/* Dashboard Visualizations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -409,11 +442,25 @@ export default function Dashboard() {
       </div>
       {/* Word Cloud */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCloud /> Top Keywords</h3>
-        <div className="flex flex-wrap gap-2">
-          {getTopKeywords(data.latestIndianNews).map(([word, count]) => (
-            <span key={word} className="inline-block bg-blue-100 text-blue-700 rounded px-2 py-1 text-xs font-semibold">{word} ({count})</span>
-          ))}
+        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><FaCloud className="text-primary-500" /> Top Keywords</h3>
+        <div className="w-full h-72">
+          <ReactWordcloud
+            words={getTopKeywords(data.latestIndianNews).map(([word, count]) => ({ text: word, value: count }))}
+            options={{
+              rotations: 2,
+              rotationAngles: [0, 0],
+              fontSizes: [18, 48],
+              fontFamily: 'inherit',
+              colors: [
+                '#0ea5e9', '#22c55e', '#fbbf24', '#f43f5e', '#a78bfa', '#f59e42', '#fbbf24', '#a3e635', '#f472b6', '#818cf8'
+              ],
+              enableTooltip: true,
+              deterministic: false,
+              scale: 'sqrt',
+              spiral: 'archimedean',
+              padding: 2,
+            }}
+          />
         </div>
       </div>
       {/* --- New: Interactive Timeline of Events --- */}
