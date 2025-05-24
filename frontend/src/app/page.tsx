@@ -310,7 +310,7 @@ export default function Dashboard() {
       {/* Latest Indian News Monitoring */}
       <div className="card mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-          <h2 className="text-2xl font-bold">Latest Indian News Monitoring</h2>
+          <h2 className="text-2xl font-bold">Latest Indian News</h2>
           <div className="flex gap-2 items-center">
             <label htmlFor="category" className="font-medium">Category:</label>
             <select
