@@ -377,11 +377,17 @@ def dashboard():
     latest_news = Article.query.filter(Article.source.in_(indian_sources)).order_by(Article.published_at.desc()).all()
     latest_news_data = []
     for a in latest_news:
+        # --- Filter: Only include news that mention Bangladesh in title or full text ---
+        title_lower = (a.title or '').lower()
+        text_lower = (a.full_text or '').lower()
+        if 'bangladesh' not in title_lower and 'bangladesh' not in text_lower:
+            continue
+        # --- Category: Use summary_json category if present ---
         category = None
-        if a.extras:
+        if a.summary_json:
             try:
-                extras_dict = json.loads(a.extras) if isinstance(a.extras, str) else a.extras
-                category = extras_dict.get('category')
+                summary_obj = json.loads(a.summary_json)
+                category = summary_obj.get('category')
             except Exception:
                 category = None
         if not category or category == "General":
@@ -503,8 +509,13 @@ def scheduled_fetch():
         fetch_exa()
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(scheduled_fetch, 'interval', days=1)
+scheduler.add_job(scheduled_fetch, 'interval', minutes=10)
 scheduler.start()
+
+@app.route('/api/fetch-latest', methods=['POST'])
+def fetch_latest_api():
+    fetch_exa()
+    return jsonify({'status': 'success', 'message': 'Fetched latest news from Exa.'})
 
 if __name__ == '__main__':
     app.run(debug=True) 

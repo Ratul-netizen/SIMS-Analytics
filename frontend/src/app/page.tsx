@@ -130,12 +130,6 @@ export default function Dashboard() {
   const langPieOptions = {
     plugins: {
       legend: { position: "bottom" as const },
-      title: {
-        display: true,
-        text: "Language Distribution",
-        font: { size: 18, weight: "bold" as const },
-        color: "#222",
-      },
       tooltip: {
         callbacks: {
           label: function (context: any) {
@@ -163,12 +157,6 @@ export default function Dashboard() {
   const langBarOptions = {
     plugins: {
       legend: { display: false },
-      title: {
-        display: true,
-        text: "Language Distribution",
-        font: { size: 18, weight: "bold" as const },
-        color: "#222",
-      },
       tooltip: {
         callbacks: {
           label: function (context: any) {
@@ -374,18 +362,16 @@ export default function Dashboard() {
                     </td>
                     <td className="py-3 px-4">{item.source}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryColorMap[item.category] || categoryColorMap["General"]}`}>{item.category}</span>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryColorMap[(item.category && typeof item.category === 'string' ? (item.category.charAt(0).toUpperCase() + item.category.slice(1)) : 'General')] || categoryColorMap['General']}`}>{item.category ? (item.category.charAt(0).toUpperCase() + item.category.slice(1)) : 'General'}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${item.sentiment === "Positive" ? "bg-green-100 text-green-700" : item.sentiment === "Negative" ? "bg-red-100 text-red-700" : item.sentiment === "Cautious" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
-                        {item.sentiment}
-                      </span>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${item.sentiment ? (item.sentiment === 'Positive' ? 'bg-green-100 text-green-700' : item.sentiment === 'Negative' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700') : 'bg-gray-100 text-gray-700'}`}>{item.sentiment || 'Neutral'}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${factCheckColor[item.fact_check] || factCheckColor["Unverified"]}`}>{item.fact_check}</span>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${item.fact_check ? factCheckColor[item.fact_check] || 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'}`}>{item.fact_check || 'Unverified'}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <a href={`/news/${item.id}`} className="text-primary-600 underline">View</a>
+                      <a href={`/news/${item.id}`} className="text-blue-600 underline">View</a>
                     </td>
                   </tr>
                 ))
@@ -393,213 +379,263 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
-        <div className="flex justify-end items-center gap-2 mt-2">
-          <button
-            className="px-3 py-1 rounded border bg-white hover:bg-gray-100"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            Prev
-          </button>
-          <span>Page {page}</span>
-          <button
-            className="px-3 py-1 rounded border bg-white hover:bg-gray-100"
-            onClick={() => setPage((p) => (paginatedNews().length < PAGE_SIZE ? p : p + 1))}
-            disabled={paginatedNews().length < PAGE_SIZE}
-          >
-            Next
-          </button>
-        </div>
       </div>
-
-      {/* Timeline of Key Events */}
-      <div className="card mb-8">
-        <h2 className="text-2xl font-bold mb-4">Timeline of Key Events</h2>
-        {data.timelineEvents.length === 0 ? (
-          <div className="text-gray-500 py-4">No events found for the selected range.</div>
-        ) : (
-          <ul className="space-y-2">
-            {data.timelineEvents.map((event: any, idx: number) => (
-              <li key={idx} className="flex items-center gap-2">
-                <span className="text-gray-500 text-sm w-32">{event.date ? format(new Date(event.date), "MMM d, yyyy") : "-"}</span>
-                <span className="font-medium">{event.event}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Language Press Comparison */}
-      <div className="card mb-8">
-        <h2 className="text-2xl font-bold mb-4">Language Press Comparison</h2>
-        <div className="flex flex-col md:flex-row gap-8 items-center justify-center">
-          <div className="w-full md:w-1/2 flex justify-center">
-            <div style={{ width: 350, height: 350 }}>
-              <Pie data={langChartData} options={langPieOptions} />
-            </div>
+      {/* Dashboard Visualizations */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        {/* Language Distribution Pie Chart */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaGlobe /> Language Distribution</h3>
+          <div className="w-full h-64">
+            <Pie data={langChartData} options={langPieOptions} />
           </div>
-          <div className="w-full md:w-1/2 flex justify-center">
-            <div style={{ width: 350, height: 350 }}>
-              <Bar data={langChartData} options={langBarOptions} />
-            </div>
+        </div>
+        {/* Sentiment Bar Chart */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment Analysis</h3>
+          <div className="w-full h-64">
+            <Bar data={sentimentChartData} options={langBarOptions} />
           </div>
         </div>
       </div>
-
-      {/* Fact-Checking: Cross-Media Comparison */}
-      <div className="card mb-8">
-        <h2 className="text-2xl font-bold mb-4">Fact-Checking: Cross-Media Comparison</h2>
-        {data.factChecking.bangladeshiAgreement === 0 && data.factChecking.internationalAgreement === 0 ? (
-          <div className="text-gray-500 py-4">No fact-checking data available.</div>
-        ) : (
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="w-full md:w-1/2">
-              <div className="mb-2 font-semibold">Bangladeshi Sources</div>
-              <div>Agreement: {data.factChecking.bangladeshiAgreement}</div>
-              <div>Verification Status: {data.factChecking.verificationStatus}</div>
-            </div>
-            <div className="w-full md:w-1/2">
-              <div className="mb-2 font-semibold">International Sources</div>
-              <div>Agreement: {data.factChecking.internationalAgreement}</div>
-              <div>Verification Status: {data.factChecking.verificationStatus}</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Key Sources Used, Tone/Sentiment Analysis, Implications & Analysis */}
-      <div className={gridClass}>
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Key Sources Used</h2>
-          {data.keySources.length === 0 ? (
-            <div className="text-gray-500 py-4">No sources found.</div>
-          ) : (
-            <ul className="list-disc pl-5">
-              {data.keySources.map((src: string, idx: number) => (
-                <li key={idx}>{src}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Tone/Sentiment Analysis</h2>
-          {sentimentLabels.length === 0 ? (
-            <div className="text-gray-500 py-4">No sentiment data available.</div>
-          ) : (
-            <Pie data={sentimentChartData} options={{ plugins: { legend: { position: "bottom" }, tooltip: { enabled: true } } }} />
-          )}
-        </div>
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Implications & Analysis</h2>
-          {data.implications.length === 0 ? (
-            <div className="text-gray-500 py-4">No implications found.</div>
-          ) : (
-            <ul className="space-y-2">
-              {data.implications.map((imp: any, idx: number) => (
-                <li key={idx}>
-                  <span className={`font-semibold px-2 py-1 rounded ${imp.impact === "High" ? "bg-red-100 text-red-700" : imp.impact === "Medium" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>{imp.type}</span>
-                  <span className="ml-2 text-sm">{imp.impact} Impact</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Prediction (Outlook) */}
-      <div className="card mb-8">
-        <h2 className="text-2xl font-bold mb-4">Prediction (Outlook)</h2>
-        {data.predictions.length === 0 ? (
-          <div className="text-gray-500 py-4">No predictions found.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {data.predictions.map((pred: any, idx: number) => (
-              <div key={idx} className="border rounded p-4 bg-gray-50">
-                <div className="font-semibold mb-2">{pred.category}</div>
-                <div className="mb-1">Likelihood: <span className="font-bold text-primary-600">{pred.likelihood}%</span></div>
-                <div className="mb-1">Time Frame: {pred.timeFrame}</div>
-                <div className="text-gray-700 text-sm">{pred.details}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* New: Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fadein">
-        <div className="card flex flex-col items-center justify-center text-center">
-          <FaNewspaper className="text-3xl text-primary-600 mb-1" />
-          <div className="text-2xl font-bold">{data.latestIndianNews.length}</div>
-          <div className="text-gray-500 text-sm">Total Articles</div>
-        </div>
-        {getSentimentStats(data.toneSentiment).map((s) => (
-          <div key={s.label} className={`card flex flex-col items-center justify-center text-center ${s.color}`}>
-            {s.icon}
-            <div className="text-2xl font-bold">{s.value}</div>
-            <div className="text-gray-500 text-sm">{s.label}</div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {getSentimentStats(data.toneSentiment).map(stat => (
+          <div key={stat.label} className={`flex flex-col items-center bg-white rounded-lg shadow p-4 ${stat.color}`}>
+            <div className="text-2xl mb-2">{stat.icon}</div>
+            <div className="text-lg font-bold">{stat.value}</div>
+            <div className="text-sm">{stat.label}</div>
           </div>
         ))}
       </div>
-
-      {/* New: Top Sources Bar */}
-      <div className="card mb-8 animate-fadein">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaGlobe className="text-primary-600" />Top Sources</h2>
-        <div className="flex flex-wrap gap-4 items-center">
-          {data.keySources.map((src: string, idx: number) => (
-            <div key={src} className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 shadow-sm hover:bg-primary-50 transition">
-              <img src={`https://www.google.com/s2/favicons?domain=${src}`} alt="favicon" className="w-5 h-5" />
-              <span className="font-medium">{src}</span>
-            </div>
+      {/* Word Cloud */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCloud /> Top Keywords</h3>
+        <div className="flex flex-wrap gap-2">
+          {getTopKeywords(data.latestIndianNews).map(([word, count]) => (
+            <span key={word} className="inline-block bg-blue-100 text-blue-700 rounded px-2 py-1 text-xs font-semibold">{word} ({count})</span>
           ))}
         </div>
       </div>
-
-      {/* New: Sentiment Trend Line Chart */}
-      {data.latestIndianNews.length > 5 && (
-        <div className="card mb-8 animate-fadein">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaChartLine className="text-primary-600" />Sentiment Trend</h2>
-          <Line
-            data={{
-              labels: data.latestIndianNews.map((n: any) => n.date ? format(new Date(n.date), "MMM d") : "-"),
-              datasets: [
-                {
-                  label: "Sentiment Score (Pos=1, Neutral=0, Neg=-1, Cautious=0.5)",
-                  data: data.latestIndianNews.map((n: any) => n.sentiment === "Positive" ? 1 : n.sentiment === "Negative" ? -1 : n.sentiment === "Cautious" ? 0.5 : 0),
-                  borderColor: "#0ea5e9",
-                  backgroundColor: "#bae6fd",
-                  tension: 0.4,
-                  fill: true,
-                  pointRadius: 3,
-                },
-              ],
-            }}
-            options={{
-              plugins: { legend: { display: false } },
-              scales: { y: { min: -1, max: 1, ticks: { stepSize: 0.5 } } },
-              responsive: true,
-            }}
-          />
+      {/* --- New: Interactive Timeline of Events --- */}
+      {data.latestIndianNews && data.latestIndianNews.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Timeline of Key Events</h3>
+          <div className="overflow-x-auto">
+            <ul className="timeline timeline-vertical">
+              {data.latestIndianNews.slice(0, 10).map((item: any) => (
+                <li key={item.id} className="mb-4">
+                  <span className="font-bold">{item.date ? format(new Date(item.date), "MMM d, yyyy") : "-"}</span>: 
+                  <a href={item.url || `/news/${item.id}`} className="text-primary-600 underline ml-2" target="_blank" rel="noopener noreferrer">
+                    {item.headline.length > 80 ? item.headline.slice(0, 80) + "..." : item.headline}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
-
-      {/* New: Word Cloud */}
-      <div className="card mb-8 animate-fadein">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaCloud className="text-primary-600" />Headline Word Cloud</h2>
-        <div className="flex flex-wrap gap-2 items-end">
-          {getTopKeywords(data.latestIndianNews).map(function(entry: [string, number]) {
-            const [word, count] = entry;
-            return (
-              <span key={word} style={{ fontSize: `${12 + count * 2}px` }} className="font-semibold text-primary-700 hover:text-primary-500 transition cursor-pointer" title={`Count: ${count}`}>{word}</span>
-            );
-          })}
+      {/* --- New: Sentiment Over Time Line Chart --- */}
+      {data.latestIndianNews && data.latestIndianNews.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8 flex flex-col items-center">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment Over Time</h3>
+          <div className="w-full max-w-4xl h-80 flex items-center justify-center">
+            <Line data={{
+              labels: data.latestIndianNews.map((item: any) => item.date ? format(new Date(item.date), "MMM d") : "-"),
+              datasets: [
+                {
+                  label: "Sentiment",
+                  data: data.latestIndianNews.map((item: any) => item.sentiment === 'Positive' ? 1 : item.sentiment === 'Negative' ? -1 : 0),
+                  borderColor: "#3b82f6",
+                  backgroundColor: "rgba(59,130,246,0.1)",
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 4,
+                  pointHoverRadius: 6,
+                },
+              ],
+            }} options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { y: { min: -1, max: 1, ticks: { callback: (v: string | number) => v === 1 ? 'Positive' : v === -1 ? 'Negative' : 'Neutral' } } },
+            }} />
+          </div>
         </div>
+      )}
+      {/* --- New: Trending Topics/Entities --- */}
+      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.topics || item.entities) && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCloud /> Trending Topics & Entities</h3>
+          <div className="flex flex-wrap gap-2">
+            {Array.from(new Set(data.latestIndianNews.flatMap((item: any) => [...(item.topics || []), ...(item.entities || [])]))).slice(0, 30).map((topic: any) => (
+              <span key={topic} className="inline-block bg-emerald-100 text-emerald-700 rounded px-2 py-1 text-xs font-semibold">{topic}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* --- New: Media Coverage Comparison Over Time --- */}
+      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.source_type) && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Media Coverage Comparison Over Time</h3>
+          <div className="w-full h-64">
+            <Line data={{
+              labels: Array.from(new Set(data.latestIndianNews.map((item: any) => item.date ? format(new Date(item.date), "MMM d") : "-"))),
+              datasets: [
+                ...['Indian', 'Bangladeshi', 'International'].map((type) => ({
+                  label: type,
+                  data: Array.from(new Set(data.latestIndianNews.map((item: any) => item.date ? format(new Date(item.date), "MMM d") : "-"))).map(dateLabel =>
+                    data.latestIndianNews.filter((item: any) => (item.date ? format(new Date(item.date), "MMM d") : "-") === dateLabel && item.source_type === type).length
+                  ),
+                  borderColor: type === 'Indian' ? '#0ea5e9' : type === 'Bangladeshi' ? '#22c55e' : '#f59e42',
+                  backgroundColor: type === 'Indian' ? 'rgba(14,165,233,0.1)' : type === 'Bangladeshi' ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,66,0.1)',
+                  fill: false,
+                  tension: 0.4,
+                }))
+              ],
+            }} options={{
+              responsive: true,
+              plugins: { legend: { position: 'bottom' } },
+            }} />
+          </div>
+        </div>
+      )}
+      {/* --- New: Geographical Heatmap (Placeholder) --- */}
+      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.location) && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaGlobe /> Geographical Heatmap</h3>
+          <div className="text-gray-500">[Heatmap visualization would go here if location data is available]</div>
+        </div>
+      )}
+      {/* --- New: Source Credibility/Trust Score --- */}
+      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.credibility_score) && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCheckCircle /> Source Credibility Scores</h3>
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2 px-4">Source</th>
+                <th className="text-left py-2 px-4">Credibility Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from(new Set(data.latestIndianNews.map((item: any) => item.source))).map((source: any) => {
+                const score = data.latestIndianNews.find((item: any) => item.source === source)?.credibility_score;
+                return score ? (
+                  <tr key={source} className="border-b">
+                    <td className="py-2 px-4">{source}</td>
+                    <td className="py-2 px-4">{score}</td>
+                  </tr>
+                ) : null;
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* --- New: Article Similarity/Clustering (Placeholder) --- */}
+      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.cluster_id) && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Article Clusters</h3>
+          <div className="text-gray-500">[Cluster visualization would go here if cluster_id/topic data is available]</div>
+        </div>
+      )}
+      {/* --- New: Media Bias Analysis (Placeholder) --- */}
+      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.topic) && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaExclamationCircle /> Media Bias Analysis</h3>
+          <div className="text-gray-500">[Media bias comparison would go here if topic/source/sentiment data is available]</div>
+        </div>
+      )}
+      {/* --- Implications & Analysis --- */}
+      {data.implications && data.implications.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">Implications & Analysis</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {data.implications.map((item: any, idx: number) => (
+              <div key={idx} className="p-4 rounded border border-gray-200 bg-gray-50">
+                <div className="font-bold">{item.type}</div>
+                <div>Impact: <span className="font-semibold">{item.impact}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* --- Prediction (Outlook) --- */}
+      {data.predictions && data.predictions.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">Prediction (Outlook)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {data.predictions.map((item: any, idx: number) => (
+              <div key={idx} className="p-4 rounded border border-yellow-200 bg-yellow-50">
+                <div className="font-bold">{item.category}</div>
+                <div>Likelihood: <span className="font-semibold">{item.likelihood}%</span></div>
+                <div>Time Frame: {item.timeFrame}</div>
+                <div className="mt-2 text-gray-700 text-sm">{item.details}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* --- Fact-Checking: Cross-Media Comparison --- */}
+      {data.factChecking && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">Fact-Checking: Cross-Media Comparison</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="font-bold mb-2">Bangladeshi Sources</div>
+              <div>Agreement: {data.factChecking.bangladeshiAgreement}</div>
+              <div>Verification Status: {data.factChecking.verificationStatus}</div>
+            </div>
+            <div>
+              <div className="font-bold mb-2">International Sources</div>
+              <div>Agreement: {data.factChecking.internationalAgreement}</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- Key Sources Used --- */}
+      {data.keySources && data.keySources.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">Key Sources Used</h3>
+          <div className="flex flex-wrap gap-2">
+            {data.keySources.map((source: string, idx: number) => (
+              <span key={idx} className="inline-block bg-blue-100 text-blue-700 rounded px-2 py-1 text-xs font-semibold">{source}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* --- New: User-Driven Custom Reports --- */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Export Custom Report</h3>
+        <button className="btn-primary" onClick={() => {
+          const csv = [
+            ['Date', 'Headline', 'Source', 'Category', 'Sentiment', 'Fact Checked', 'URL'],
+            ...data.latestIndianNews.map((item: any) => [item.date, item.headline, item.source, item.category, item.sentiment, item.fact_check, item.url || ''])
+          ].map((row: any[]) => row.map((field: any) => `"${String(field).replace(/"/g, '""')}"`).join(',')).join('\n');
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'custom_report.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+        }}>
+          Export as CSV
+        </button>
       </div>
-
-      <style jsx global>{`
-        .animate-fadein { animation: fadein 0.7s; }
-        @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
-      `}</style>
+      {/* --- New: Alert/Notification System (Sentiment Spike/Trend) --- */}
+      {(() => {
+        if (!data.latestIndianNews) return null;
+        const sentiments = data.latestIndianNews.map((item: any) => item.sentiment);
+        const negativeSpike = sentiments.filter((s: string) => s === 'Negative').length > data.latestIndianNews.length * 0.5;
+        if (negativeSpike) {
+          return (
+            <div className="bg-red-100 text-red-700 rounded-lg shadow p-4 mb-8 font-semibold">
+              Alert: Negative sentiment spike detected in recent news!
+            </div>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
-} 
+}

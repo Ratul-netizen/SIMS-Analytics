@@ -101,41 +101,43 @@ export default function NewsDetail() {
   );
 
   return (
-    <div className="animate-fadein">
-      <div className="max-w-4xl mx-auto px-2 md:px-6 py-8">
-        <div className="flex gap-4 mb-6">
-          <button className="flex items-center gap-2 px-5 py-2 rounded bg-primary-600 text-white font-semibold hover:bg-primary-700 shadow transition" onClick={() => router.push("/")}> <FaChevronLeft /> Back to Dashboard</button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-5xl mx-auto px-4 md:px-10 py-14">
+        {/* Header Buttons */}
+        <div className="flex justify-between items-center mb-10 gap-8 flex-wrap">
+          <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white text-lg font-semibold hover:bg-primary-700 shadow transition" onClick={() => router.push("/")}> <FaChevronLeft /> Back to Dashboard</button>
           {data.url && (
             <a
               href={data.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-5 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow transition"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 shadow transition"
             >
               <FaLink /> View Original
             </a>
           )}
         </div>
-        <div className="rounded-xl shadow-lg bg-white overflow-hidden mb-8">
-          {/* Header with image background */}
-          <div className="relative h-48 md:h-64 flex items-end bg-gray-100">
+        {/* Header Card */}
+        <div className="rounded-3xl shadow-2xl bg-white overflow-hidden mb-14 relative max-w-4xl mx-auto">
+          <div className="relative h-64 md:h-80 flex items-end bg-gray-100">
             {data.image && (
-              <img src={data.image} alt="news" className="absolute inset-0 w-full h-full object-cover object-center opacity-70" />
+              <img src={data.image} alt="news" className="absolute inset-0 w-full h-full object-cover object-center opacity-80" />
             )}
-            <div className="relative z-10 p-6 w-full bg-gradient-to-t from-black/70 to-transparent">
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                {data.favicon && <img src={data.favicon} alt="favicon" className="w-6 h-6 rounded inline-block" />}
-                <span className="text-white font-semibold text-lg flex items-center gap-1"><FaGlobe /> {data.source}</span>
-                <span className={`px-2 py-1 rounded border text-xs font-semibold ${categoryColor[cat]}`}>{summary.category || "General"}</span>
-                <span className={`px-2 py-1 rounded border text-xs font-semibold flex items-center gap-1 ${sentimentColor[sent]}`}>{sentimentIcon[sent]}{data.sentiment}</span>
-                <span className={`px-2 py-1 rounded border text-xs font-semibold flex items-center gap-1 ${factCheckColor[fact]}`}>{factCheckIcon[fact]}{data.fact_check}</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-0" />
+            <div className="relative z-10 p-10 w-full">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                {data.favicon && <img src={data.favicon} alt="favicon" className="w-8 h-8 rounded inline-block bg-white p-1" />}
+                <span className="text-white font-semibold text-xl flex items-center gap-1"><FaGlobe /> {data.source}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold ${categoryColor[cat]}`}>{summary.category || "General"}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${sentimentColor[sent]}`}>{sentimentIcon[sent]}{data.sentiment}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${factCheckColor[fact]}`}>{factCheckIcon[fact]}{data.fact_check}</span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white drop-shadow mb-1">{data.title}</h1>
-              <div className="flex flex-wrap gap-4 items-center text-gray-200 text-sm">
-                <span className="flex items-center gap-1"><FaUser /> {data.author || "Unknown"}</span>
-                <span className="flex items-center gap-1"><FaCalendarAlt /> {data.publishedDate ? format(new Date(data.publishedDate), "MMM d, yyyy") : "-"}</span>
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow mb-3 leading-tight">{data.title}</h1>
+              <div className="flex flex-wrap gap-8 items-center text-gray-200 text-lg">
+                <span className="flex items-center gap-2"><FaUser /> {data.author || "Unknown"}</span>
+                <span className="flex items-center gap-2"><FaCalendarAlt /> {data.publishedDate ? format(new Date(data.publishedDate), "MMM d, yyyy") : "-"}</span>
                 {links.length > 0 && (
-                  <span className="flex items-center gap-1"><FaLink />
+                  <span className="flex items-center gap-2"><FaLink />
                     {links.map((l: string, i: number) => {
                       let display = l.replace(/^https?:\/\//, '').replace(/\/$/, '');
                       if (display.length > 40) display = display.slice(0, 37) + '...';
@@ -157,53 +159,49 @@ export default function NewsDetail() {
               </div>
             </div>
           </div>
-          {/* Main content */}
-          <div className="p-6 md:p-8">
-            {/* Executive Summary */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-2">
-                <FaRegNewspaper className="text-yellow-500 text-xl" />
-                <span className="font-bold text-lg">Executive Summary</span>
-              </div>
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm whitespace-pre-line text-gray-800">
-                {data.text}
-              </div>
-            </div>
-            {/* Two-column layout for summaries and metadata */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div>
-                <div className="font-semibold mb-1 text-primary-700">Bangladeshi Media Summary</div>
-                <div className="mb-2 text-gray-700">{data.bangladeshi_summary || summary.comparison?.bangladeshi_media || "Not covered"}</div>
-                {matchesSection("Bangladeshi Matches", data.bangladeshi_matches || summary.bangladeshi_matches || [])}
-              </div>
-              <div>
-                <div className="font-semibold mb-1 text-primary-700">International Media Summary</div>
-                <div className="mb-2 text-gray-700">{data.international_summary || summary.comparison?.international_media || "Not covered"}</div>
-                {matchesSection("International Matches", data.international_matches || summary.international_matches || [])}
-              </div>
-            </div>
-            <hr className="my-6 border-gray-200" />
-            {/* Score and Extras */}
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
-              <div>
-                <div className="font-semibold text-gray-700">Score:</div>
-                <div className="text-lg font-mono">{typeof data.score === "number" ? data.score.toFixed(3) : "-"}</div>
-              </div>
-              {/* Add more metadata or extras here if needed */}
-            </div>
+        </div>
+        {/* Executive Summary */}
+        <div className="mb-14 max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <FaRegNewspaper className="text-yellow-500 text-3xl" />
+            <span className="font-bold text-2xl text-gray-800">Executive Summary</span>
           </div>
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-8 rounded-2xl shadow whitespace-pre-line text-gray-800 text-lg min-h-[120px]">
+            {data.text}
+          </div>
+        </div>
+        {/* Two-column layout for summaries and metadata */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14 max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow p-8 min-h-[220px] flex flex-col">
+            <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaGlobe className="text-primary-600" />Bangladeshi Media Summary</div>
+            <div className="mb-3 text-gray-700 text-base flex-1">{data.bangladeshi_summary || summary.comparison?.bangladeshi_media || "Not covered"}</div>
+            {matchesSection("Bangladeshi Matches", data.bangladeshi_matches || summary.bangladeshi_matches || [])}
+          </div>
+          <div className="bg-white rounded-2xl shadow p-8 min-h-[220px] flex flex-col">
+            <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaGlobe className="text-primary-600" />International Media Summary</div>
+            <div className="mb-3 text-gray-700 text-base flex-1">{data.international_summary || summary.comparison?.international_media || "Not covered"}</div>
+            {matchesSection("International Matches", data.international_matches || summary.international_matches || [])}
+          </div>
+        </div>
+        {/* Score and Extras */}
+        <div className="flex flex-col md:flex-row md:items-center gap-10 mb-14 max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow p-8 flex-1 flex flex-col items-center min-h-[120px]">
+            <div className="font-semibold text-gray-700 mb-2 flex items-center gap-2 text-lg"><FaCheckCircle className="text-green-500" />Score</div>
+            <div className="text-3xl font-mono text-primary-700">{typeof data.score === "number" ? data.score.toFixed(3) : "-"}</div>
+          </div>
+          {/* Add more metadata or extras here if needed */}
         </div>
         {/* Related Articles Carousel */}
         {data.summary && data.summary.category && (
-          <div className="card mb-8 animate-fadein">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaArrowRight className="text-primary-600" />Related Articles</h2>
-            <div className="flex overflow-x-auto gap-4 pb-2">
+          <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
+            <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaArrowRight className="text-primary-600" />Related Articles</h2>
+            <div className="flex overflow-x-auto gap-6 pb-2">
               {(data.relatedArticles || []).length === 0 ? (
                 <div className="text-gray-500">No related articles found.</div>
               ) : (
                 (data.relatedArticles || []).map((art: any) => (
-                  <a key={art.id} href={`/news/${art.id}`} className="min-w-[220px] max-w-xs bg-gray-50 rounded shadow p-4 hover:bg-primary-50 transition flex flex-col gap-2">
-                    <div className="font-bold text-primary-700 truncate">{art.title}</div>
+                  <a key={art.id} href={`/news/${art.id}`} className="min-w-[260px] max-w-xs bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
+                    <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
                     <div className="text-xs text-gray-500">{art.source}</div>
                     <div className="flex gap-1 text-xs">
                       <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "General"]}`}>{art.category}</span>
@@ -215,37 +213,39 @@ export default function NewsDetail() {
             </div>
           </div>
         )}
-
         {/* Sentiment Breakdown Donut Chart */}
         {data.summary && data.summary.sentiment && (
-          <div className="card mb-8 animate-fadein">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper className="text-primary-600" />Sentiment Breakdown</h2>
-            <Pie
-              data={{
-                labels: [data.summary.sentiment],
-                datasets: [
-                  {
-                    data: [1],
-                    backgroundColor: [sentimentColor[(data.summary.sentiment as keyof typeof sentimentColor) || "Neutral"] || "#e5e7eb"],
-                  },
-                ],
-              }}
-              options={{ plugins: { legend: { display: true, position: "bottom" } } }}
-            />
+          <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
+            <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaRegNewspaper className="text-primary-600" />Sentiment Breakdown</h2>
+            <div className="flex justify-center">
+              <div style={{ width: 340, height: 340 }}>
+                <Pie
+                  data={{
+                    labels: [data.summary.sentiment],
+                    datasets: [
+                      {
+                        data: [1],
+                        backgroundColor: [sentimentColor[(data.summary.sentiment as keyof typeof sentimentColor) || "Neutral"] || "#e5e7eb"],
+                      },
+                    ],
+                  }}
+                  options={{ plugins: { legend: { display: true, position: "bottom" } } }}
+                />
+              </div>
+            </div>
           </div>
         )}
-
         {/* More from this Source */}
         {data.source && (
-          <div className="card mb-8 animate-fadein">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaNewspaper className="text-primary-600" />More from {data.source}</h2>
-            <div className="flex flex-wrap gap-4">
+          <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
+            <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaNewspaper className="text-primary-600" />More from {data.source}</h2>
+            <div className="flex flex-wrap gap-6">
               {(data.moreFromSource || []).length === 0 ? (
                 <div className="text-gray-500">No more articles from this source.</div>
               ) : (
                 (data.moreFromSource || []).map((art: any) => (
-                  <a key={art.id} href={`/news/${art.id}`} className="w-64 bg-gray-50 rounded shadow p-4 hover:bg-primary-50 transition flex flex-col gap-2">
-                    <div className="font-bold text-primary-700 truncate">{art.title}</div>
+                  <a key={art.id} href={`/news/${art.id}`} className="w-72 bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
+                    <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
                     <div className="text-xs text-gray-500">{art.publishedDate ? format(new Date(art.publishedDate), "MMM d, yyyy") : "-"}</div>
                   </a>
                 ))
@@ -253,16 +253,11 @@ export default function NewsDetail() {
             </div>
           </div>
         )}
+        <style jsx global>{`
+          .animate-fadein { animation: fadein 0.7s; }
+          @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+        `}</style>
       </div>
-      <style jsx global>{`
-        .animate-fadein {
-          animation: fadein 0.7s;
-        }
-        @keyframes fadein {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: none; }
-        }
-      `}</style>
     </div>
   );
 } 
