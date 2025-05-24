@@ -17,6 +17,7 @@ import {
   BarElement,
 } from "chart.js";
 import { FaCheckCircle, FaExclamationCircle, FaRegNewspaper, FaChartLine, FaCloud, FaNewspaper, FaGlobe } from "react-icons/fa";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 
 ChartJS.register(
   CategoryScale,
@@ -27,7 +28,8 @@ ChartJS.register(
   ChartTooltip,
   Legend,
   ArcElement,
-  BarElement
+  BarElement,
+  ChartDataLabels
 );
 
 const PAGE_SIZE = 10;
@@ -114,22 +116,87 @@ export default function Dashboard() {
   // Pie/Bar data for language distribution
   const langLabels = Object.keys(data?.languageDistribution || {});
   const langValues = Object.values(data?.languageDistribution || {});
+  const langColors = ["#0ea5e9", "#f59e42", "#22c55e", "#f43f5e", "#a78bfa", "#fbbf24"];
   const langChartData = {
     labels: langLabels,
     datasets: [
       {
         label: "Language Distribution",
         data: langValues,
-        backgroundColor: [
-          "#0ea5e9",
-          "#f59e42",
-          "#22c55e",
-          "#f43f5e",
-          "#a78bfa",
-          "#fbbf24",
-        ],
+        backgroundColor: langColors.slice(0, langLabels.length),
       },
     ],
+  };
+  const langPieOptions = {
+    plugins: {
+      legend: { position: "bottom" as const },
+      title: {
+        display: true,
+        text: "Language Distribution",
+        font: { size: 18, weight: "bold" as const },
+        color: "#222",
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            const label = context.label || "";
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const percent = total ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percent}%)`;
+          },
+        },
+      },
+    },
+    datalabels: {
+      display: true,
+      color: "#222",
+      font: { weight: "bold" as const },
+      formatter: (value: number, ctx: any) => {
+        const total = ctx.chart.data.datasets[0].data.reduce((a: number, b: number) => a + b, 0);
+        return total ? `${((value / total) * 100).toFixed(1)}%` : '';
+      },
+    },
+    maintainAspectRatio: false,
+    responsive: true
+  };
+  const langBarOptions = {
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: "Language Distribution",
+        font: { size: 18, weight: "bold" as const },
+        color: "#222",
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            const label = context.label || "";
+            const value = context.parsed.y;
+            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const percent = total ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percent}%)`;
+          },
+        },
+      },
+      datalabels: {
+        display: true,
+        color: "#222",
+        font: { weight: "bold" as const },
+        anchor: "end" as const,
+        align: "top" as const,
+        formatter: (value: number, ctx: any) => {
+          const total = ctx.chart.data.datasets[0].data.reduce((a: number, b: number) => a + b, 0);
+          return total ? `${((value / total) * 100).toFixed(1)}%` : '';
+        },
+      },
+    },
+    maintainAspectRatio: false,
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 10 } },
+    },
   };
 
   // Pie/Bar data for sentiment
@@ -201,7 +268,7 @@ export default function Dashboard() {
     const stopwords = ["the", "of", "in", "and", "to", "a", "on", "for", "as", "is", "at", "by", "an", "with", "from", "be", "it", "that", "this", "will", "are", "has", "after", "was", "not", "but", "or", "its", "his", "her", "their", "he", "she", "they", "we", "you", "i", "have", "had", "were", "which", "who", "what", "when", "where", "how", "why", "all", "more", "new", "about", "into", "out", "up", "over", "than", "so", "if", "no", "do", "does", "did", "can", "just", "now", "may", "also", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
     const freq: Record<string, number> = {};
     news.forEach(item => {
-      (item.headline || "").split(/\W+/).forEach(word => {
+      (item.headline || "").split(/\W+/).forEach((word: string) => {
         const w = word.toLowerCase();
         if (w.length > 2 && !stopwords.includes(w)) freq[w] = (freq[w] || 0) + 1;
       });
@@ -366,12 +433,16 @@ export default function Dashboard() {
       {/* Language Press Comparison */}
       <div className="card mb-8">
         <h2 className="text-2xl font-bold mb-4">Language Press Comparison</h2>
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="w-full md:w-1/2">
-            <Pie data={langChartData} options={{ plugins: { legend: { position: "bottom" }, tooltip: { enabled: true } } }} />
+        <div className="flex flex-col md:flex-row gap-8 items-center justify-center">
+          <div className="w-full md:w-1/2 flex justify-center">
+            <div style={{ width: 350, height: 350 }}>
+              <Pie data={langChartData} options={langPieOptions} />
+            </div>
           </div>
-          <div className="w-full md:w-1/2">
-            <Bar data={langChartData} options={{ plugins: { legend: { display: false }, tooltip: { enabled: true } } }} />
+          <div className="w-full md:w-1/2 flex justify-center">
+            <div style={{ width: 350, height: 350 }}>
+              <Bar data={langChartData} options={langBarOptions} />
+            </div>
           </div>
         </div>
       </div>

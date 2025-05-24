@@ -3,7 +3,15 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import axios from "axios";
 import { format } from "date-fns";
-import { FaUser, FaCalendarAlt, FaGlobe, FaLink, FaChevronLeft, FaRegNewspaper, FaCheckCircle, FaExclamationCircle, FaQuestionCircle } from "react-icons/fa";
+import { FaUser, FaCalendarAlt, FaGlobe, FaLink, FaChevronLeft, FaRegNewspaper, FaCheckCircle, FaExclamationCircle, FaQuestionCircle, FaArrowRight, FaNewspaper } from "react-icons/fa";
+import { Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const sentimentColor = {
   Positive: "bg-green-100 text-green-700 border-green-300",
@@ -173,6 +181,66 @@ export default function NewsDetail() {
             </div>
           </div>
         </div>
+        {/* Related Articles Carousel */}
+        {data.summary && data.summary.category && (
+          <div className="card mb-8 animate-fadein">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaArrowRight className="text-primary-600" />Related Articles</h2>
+            <div className="flex overflow-x-auto gap-4 pb-2">
+              {(data.relatedArticles || []).length === 0 ? (
+                <div className="text-gray-500">No related articles found.</div>
+              ) : (
+                (data.relatedArticles || []).map((art: any) => (
+                  <a key={art.id} href={`/news/${art.id}`} className="min-w-[220px] max-w-xs bg-gray-50 rounded shadow p-4 hover:bg-primary-50 transition flex flex-col gap-2">
+                    <div className="font-bold text-primary-700 truncate">{art.title}</div>
+                    <div className="text-xs text-gray-500">{art.source}</div>
+                    <div className="flex gap-1 text-xs">
+                      <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "General"]}`}>{art.category}</span>
+                      <span className={`px-2 py-0.5 rounded ${sentimentColor[(art.sentiment as keyof typeof sentimentColor) || "Neutral"]}`}>{art.sentiment}</span>
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Sentiment Breakdown Donut Chart */}
+        {data.summary && data.summary.sentiment && (
+          <div className="card mb-8 animate-fadein">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper className="text-primary-600" />Sentiment Breakdown</h2>
+            <Pie
+              data={{
+                labels: [data.summary.sentiment],
+                datasets: [
+                  {
+                    data: [1],
+                    backgroundColor: [sentimentColor[(data.summary.sentiment as keyof typeof sentimentColor) || "Neutral"] || "#e5e7eb"],
+                  },
+                ],
+              }}
+              options={{ plugins: { legend: { display: true, position: "bottom" } } }}
+            />
+          </div>
+        )}
+
+        {/* More from this Source */}
+        {data.source && (
+          <div className="card mb-8 animate-fadein">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><FaNewspaper className="text-primary-600" />More from {data.source}</h2>
+            <div className="flex flex-wrap gap-4">
+              {(data.moreFromSource || []).length === 0 ? (
+                <div className="text-gray-500">No more articles from this source.</div>
+              ) : (
+                (data.moreFromSource || []).map((art: any) => (
+                  <a key={art.id} href={`/news/${art.id}`} className="w-64 bg-gray-50 rounded shadow p-4 hover:bg-primary-50 transition flex flex-col gap-2">
+                    <div className="font-bold text-primary-700 truncate">{art.title}</div>
+                    <div className="text-xs text-gray-500">{art.publishedDate ? format(new Date(art.publishedDate), "MMM d, yyyy") : "-"}</div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <style jsx global>{`
         .animate-fadein {
