@@ -164,7 +164,7 @@ export default function NewsDetail() {
         <div className="mb-14 max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <FaRegNewspaper className="text-yellow-500 text-3xl" />
-            <span className="font-bold text-2xl text-gray-800">Executive Summary</span>
+            <span className="font-bold text-2xl text-gray-800">Detailed News</span>
           </div>
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-8 rounded-2xl shadow whitespace-pre-line text-gray-800 text-lg min-h-[120px]">
             {data.text}
@@ -192,27 +192,25 @@ export default function NewsDetail() {
           {/* Add more metadata or extras here if needed */}
         </div>
         {/* Related Articles Carousel */}
-        {data.summary && data.summary.category && (
-          <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaArrowRight className="text-primary-600" />Related Articles</h2>
-            <div className="flex overflow-x-auto gap-6 pb-2">
-              {(data.relatedArticles || []).length === 0 ? (
-                <div className="text-gray-500">No related articles found.</div>
-              ) : (
-                (data.relatedArticles || []).map((art: any) => (
-                  <a key={art.id} href={`/news/${art.id}`} className="min-w-[260px] max-w-xs bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
-                    <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
-                    <div className="text-xs text-gray-500">{art.source}</div>
-                    <div className="flex gap-1 text-xs">
-                      <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "General"]}`}>{art.category}</span>
-                      <span className={`px-2 py-0.5 rounded ${sentimentColor[(art.sentiment as keyof typeof sentimentColor) || "Neutral"]}`}>{art.sentiment}</span>
-                    </div>
-                  </a>
-                ))
-              )}
-            </div>
+        <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
+          <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaArrowRight className="text-primary-600" />Related Articles</h2>
+          <div className="flex overflow-x-auto gap-6 pb-2">
+            {(data.related_articles || []).length === 0 ? (
+              <div className="text-gray-500">No related articles found.</div>
+            ) : (
+              (data.related_articles || []).map((art: any) => (
+                <a key={art.id} href={`/news/${art.id}`} className="min-w-[260px] max-w-xs bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
+                  <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
+                  <div className="text-xs text-gray-500">{art.source}</div>
+                  <div className="flex gap-1 text-xs">
+                    <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "General"]}`}>{art.category}</span>
+                    <span className={`px-2 py-0.5 rounded ${sentimentColor[(art.sentiment as keyof typeof sentimentColor) || "Neutral"]}`}>{art.sentiment}</span>
+                  </div>
+                </a>
+              ))
+            )}
           </div>
-        )}
+        </div>
         {/* Sentiment Breakdown Donut Chart */}
         {data.summary && data.summary.sentiment && (
           <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">

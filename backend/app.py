@@ -154,7 +154,12 @@ def run_exa_ingestion():
             art = Article.query.filter_by(url=item.url).first() or Article(url=item.url)
             art.title = item.title
             art.published_at = datetime.datetime.fromisoformat(item.published_date.replace('Z','+00:00'))
+            # Author extraction: if missing, try to extract from text
             art.author = getattr(item, 'author', None)
+            if not art.author and item.text:
+                author_match = re.search(r'By\s+([A-Za-z\s]+)', item.text)
+                if author_match:
+                    art.author = author_match.group(1).strip()
             # Use Exa's category if present, otherwise infer
             category = get_field(summary, 'category', default=None)
             if not category or category == "General":
@@ -190,10 +195,20 @@ def run_exa_ingestion():
                 bd_matches = []
             if not isinstance(intl_matches, list):
                 intl_matches = []
+            # Secondary fuzzy search for matches if empty
+            if not bd_matches:
+                bd_matches = [{'title': a.title, 'source': a.source, 'url': a.url} for a in Article.query.filter(Article.source.in_(bd_sources)).all() if SequenceMatcher(None, a.title.lower(), item.title.lower()).ratio() > 0.7][:3]
+            if not intl_matches:
+                intl_matches = [{'title': a.title, 'source': a.source, 'url': a.url} for a in Article.query.filter(Article.source.in_(intl_sources)).all() if SequenceMatcher(None, a.title.lower(), item.title.lower()).ratio() > 0.7][:3]
             art.image = getattr(item, 'image', None)
             art.favicon = getattr(item, 'favicon', None)
             art.score = getattr(item, 'score', None)
-            art.extras = json.dumps(getattr(item, 'extras', {}))
+            # Extras normalization: if links missing, extract from text
+            extras = getattr(item, 'extras', {})
+            if not extras.get('links') and item.text:
+                links = re.findall(r'https?://\S+', item.text)
+                extras['links'] = list(set(links))  # remove duplicates
+            art.extras = json.dumps(extras)
             art.full_text = getattr(item, 'text', None)
             # Store only the normalized summary
             art.summary_json = json.dumps({
@@ -307,6 +322,24 @@ def list_articles():
 @app.route('/api/articles/<int:id>')
 def get_article(id):
     a = Article.query.get_or_404(id)
+    # Find related articles by fuzzy title match (excluding itself)
+    def similar(a_title, b_title):
+        return SequenceMatcher(None, a_title, b_title).ratio() > 0.5  # adjust threshold as needed
+
+    all_articles = Article.query.filter(Article.id != id).all()
+    related = [
+        {
+            'id': art.id,
+            'title': art.title,
+            'source': art.source,
+            'category': art.summary_json and json.loads(art.summary_json).get('category', 'General'),
+            'sentiment': art.sentiment,
+            'url': art.url
+        }
+        for art in all_articles
+        if similar((art.title or '').lower(), (a.title or '').lower())
+    ][:5]  # limit to 5
+
     return jsonify({
         'id': a.id,
         'title': a.title,
@@ -331,7 +364,8 @@ def get_article(id):
         'international_matches': [
             {'title': m.title, 'source': m.source, 'url': m.url}
             for m in IntMatch.query.filter_by(article_id=a.id)
-        ]
+        ],
+        'related_articles': related
     })
 
 def infer_category(title, text):

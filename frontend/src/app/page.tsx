@@ -431,6 +431,20 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      {/* Show alert for negative sentiment spike immediately after news box */}
+      {(() => {
+        if (!data.latestIndianNews) return null;
+        const sentiments = data.latestIndianNews.map((item: any) => item.sentiment);
+        const negativeSpike = sentiments.filter((s: string) => s === 'Negative').length > data.latestIndianNews.length * 0.5;
+        if (negativeSpike) {
+          return (
+            <div className="bg-red-100 text-red-700 rounded-lg shadow p-4 mb-8 font-semibold">
+              Alert: Negative sentiment spike detected in recent news!
+            </div>
+          );
+        }
+        return null;
+      })()}
       {/* Dashboard Visualizations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Language Distribution Pie Chart */}
@@ -500,13 +514,13 @@ export default function Dashboard() {
       {/* Word Cloud */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><FaCloud className="text-primary-500" /> Top Keywords</h3>
-        <div className="w-full h-72">
+        <div className="w-full h-96">
           <ReactWordcloud
             words={getTopKeywords(data.latestIndianNews).map(([word, count]) => ({ text: word, value: count }))}
             options={{
-              rotations: 2,
+              rotations: 1,
               rotationAngles: [0, 0],
-              fontSizes: [18, 48],
+              fontSizes: [16, 40] as any,
               fontFamily: 'inherit',
               colors: [
                 '#0ea5e9', '#22c55e', '#fbbf24', '#f43f5e', '#a78bfa', '#f59e42', '#fbbf24', '#a3e635', '#f472b6', '#818cf8'
@@ -515,7 +529,6 @@ export default function Dashboard() {
               deterministic: false,
               scale: 'sqrt',
               spiral: 'archimedean',
-              padding: 2,
             }}
             callbacks={{
               onWordClick: (word: any) => {
@@ -736,20 +749,6 @@ export default function Dashboard() {
           Export as CSV
         </button>
       </div>
-      {/* --- New: Alert/Notification System (Sentiment Spike/Trend) --- */}
-      {(() => {
-        if (!data.latestIndianNews) return null;
-        const sentiments = data.latestIndianNews.map((item: any) => item.sentiment);
-        const negativeSpike = sentiments.filter((s: string) => s === 'Negative').length > data.latestIndianNews.length * 0.5;
-        if (negativeSpike) {
-          return (
-            <div className="bg-red-100 text-red-700 rounded-lg shadow p-4 mb-8 font-semibold">
-              Alert: Negative sentiment spike detected in recent news!
-            </div>
-          );
-        }
-        return null;
-      })()}
     </div>
   );
 }
