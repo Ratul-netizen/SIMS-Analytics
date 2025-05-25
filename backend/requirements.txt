@@ -1,6 +1,8 @@
-flask==3.0.2
-flask-sqlalchemy==3.1.1
-flask-migrate==4.0.5
-exa-py==1.13.1
-python-dotenv==1.0.1
-apscheduler==3.10.4 
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Cors
+python-dotenv
+APScheduler
+exa-py
+SQLAlchemy 
