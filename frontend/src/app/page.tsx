@@ -44,26 +44,28 @@ export default function Dashboard() {
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [tableLoading, setTableLoading] = useState(false);
-  const [category, setCategory] = useState<string>("");
-  const [categories, setCategories] = useState<string[]>([]);
+  const [source, setSource] = useState<string>("");
+  const [sources, setSources] = useState<{ domain: string, name: string }[]>([]);
   const [sentimentFilter, setSentimentFilter] = useState<string>("");
   const [keywordFilter, setKeywordFilter] = useState<string>("");
   const [factCheckTooltip, setFactCheckTooltip] = useState<{ show: boolean, text: string, x: number, y: number }>({ show: false, text: '', x: 0, y: 0 });
 
+  // Fetch Indian sources for dropdown
+  useEffect(() => {
+    axios.get("/api/indian-sources").then(res => setSources(res.data));
+  }, []);
+
   // Fetch dashboard data
-  const fetchDashboard = async (range = dateRange, cat = category) => {
+  const fetchDashboard = async (range = dateRange, src = source) => {
     setLoading(true);
     setError(null);
     try {
       const params: any = {};
       if (range.start) params.start = range.start;
       if (range.end) params.end = range.end;
-      if (cat) params.category = cat;
+      if (src) params.source = src;
       const response = await axios.get("/api/dashboard", { params });
       setData(response.data);
-      // Extract unique categories from the latest news for the dropdown
-      const allCats = (response.data.latestIndianNews || []).map((item: any) => item.category).filter(Boolean);
-      setCategories(Array.from(new Set(["", ...allCats])));
     } catch (err) {
       setError("Failed to fetch dashboard data.");
     } finally {
@@ -307,20 +309,20 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
           <h2 className="text-2xl font-bold">Latest Indian News</h2>
           <div className="flex gap-2 items-center">
-            <label htmlFor="category" className="font-medium">Category:</label>
+            <label htmlFor="source" className="font-medium">Source:</label>
             <select
-              id="category"
+              id="source"
               className="border rounded px-2 py-1"
-              value={category}
+              value={source}
               onChange={async (e) => {
-                setCategory(e.target.value);
+                setSource(e.target.value);
                 setPage(1);
                 await fetchDashboard(dateRange, e.target.value);
               }}
             >
               <option value="">All</option>
-              {categories.filter((cat) => cat && cat !== "").map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              {sources.map((src) => (
+                <option key={src.domain} value={src.domain}>{src.name}</option>
               ))}
             </select>
           </div>

@@ -412,13 +412,17 @@ def dashboard():
             return 'Cautious'
         return 'Neutral'
 
-    # Get category filter from query params
+    # Get category and source filter from query params
     filter_category = request.args.get('category')
+    filter_source = request.args.get('source')
     # Latest Indian News Monitoring (limit 20, Indian sources only)
     indian_sources = [
         "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com"
     ]
-    latest_news = Article.query.filter(Article.source.in_(indian_sources)).order_by(Article.published_at.desc()).all()
+    latest_news_query = Article.query.filter(Article.source.in_(indian_sources))
+    if filter_source:
+        latest_news_query = latest_news_query.filter(Article.source == filter_source)
+    latest_news = latest_news_query.order_by(Article.published_at.desc()).all()
     latest_news_data = []
     # Prepare sets of Bangladeshi and International sources
     bd_sources = set([
@@ -594,6 +598,37 @@ def dashboard():
 def fetch_latest_api():
     run_exa_ingestion()
     return jsonify({'status': 'success', 'message': 'Fetched latest news from Exa.'})
+
+@app.route('/api/indian-sources')
+def indian_sources_api():
+    indian_sources = [
+        ("timesofindia.indiatimes.com", "The Times of India"),
+        ("hindustantimes.com", "Hindustan Times"),
+        ("ndtv.com", "NDTV"),
+        ("thehindu.com", "The Hindu"),
+        ("indianexpress.com", "The Indian Express"),
+        ("indiatoday.in", "India Today"),
+        ("news18.com", "News18"),
+        ("zeenews.india.com", "Zee News"),
+        ("aajtak.in", "Aaj Tak"),
+        ("abplive.com", "ABP Live"),
+        ("jagran.com", "Dainik Jagran"),
+        ("bhaskar.com", "Dainik Bhaskar"),
+        ("livehindustan.com", "Hindustan"),
+        ("business-standard.com", "Business Standard"),
+        ("economictimes.indiatimes.com", "The Economic Times"),
+        ("livemint.com", "Mint"),
+        ("scroll.in", "Scroll.in"),
+        ("thewire.in", "The Wire"),
+        ("wionews.com", "WION"),
+        ("indiatvnews.com", "India TV"),
+        ("newsnationtv.com", "News Nation"),
+        ("jansatta.com", "Jansatta"),
+        ("india.com", "India.com")
+    ]
+    return jsonify([
+        {"domain": domain, "name": name} for domain, name in indian_sources]
+    )
 
 if __name__ == '__main__':
     app.run(debug=True) 
