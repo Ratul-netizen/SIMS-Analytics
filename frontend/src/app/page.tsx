@@ -46,6 +46,9 @@ export default function Dashboard() {
   const [tableLoading, setTableLoading] = useState(false);
   const [category, setCategory] = useState<string>("");
   const [categories, setCategories] = useState<string[]>([]);
+  const [sentimentFilter, setSentimentFilter] = useState<string>("");
+  const [keywordFilter, setKeywordFilter] = useState<string>("");
+  const [factCheckTooltip, setFactCheckTooltip] = useState<{ show: boolean, text: string, x: number, y: number }>({ show: false, text: '', x: 0, y: 0 });
 
   // Fetch dashboard data
   const fetchDashboard = async (range = dateRange, cat = category) => {
@@ -87,7 +90,10 @@ export default function Dashboard() {
   // Table pagination
   const paginatedNews = () => {
     if (!data?.latestIndianNews) return [];
-    let sorted = [...data.latestIndianNews];
+    let filtered = [...data.latestIndianNews];
+    if (sentimentFilter) filtered = filtered.filter(item => item.sentiment === sentimentFilter);
+    if (keywordFilter) filtered = filtered.filter(item => (item.headline || '').toLowerCase().includes(keywordFilter.toLowerCase()));
+    let sorted = [...filtered];
     sorted.sort((a, b) => {
       let aVal = a[sortBy] || "";
       let bVal = b[sortBy] || "";
@@ -376,8 +382,20 @@ export default function Dashboard() {
                         {item.sentiment || 'Neutral'}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${item.fact_check ? factCheckColor[item.fact_check] || 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'}`}>{item.fact_check || 'Unverified'}</span>
+                    <td className="py-3 px-4 relative">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${item.fact_check ? factCheckColor[item.fact_check] || 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'}`}
+                        onMouseEnter={e => setFactCheckTooltip({ show: true, text: `Fact-check status: ${item.fact_check || 'Unverified'}`, x: e.clientX, y: e.clientY })}
+                        onMouseLeave={() => setFactCheckTooltip({ ...factCheckTooltip, show: false })}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {item.fact_check || 'Unverified'}
+                      </span>
+                      {factCheckTooltip.show && (
+                        <div style={{ position: 'fixed', left: factCheckTooltip.x + 10, top: factCheckTooltip.y + 10, zIndex: 1000 }} className="bg-black text-white text-xs rounded px-2 py-1 shadow-lg">
+                          {factCheckTooltip.text}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <a href={`/news/${item.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-primary-600 text-white font-semibold shadow hover:bg-primary-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary-400" title="View details">
@@ -426,7 +444,46 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment Analysis</h3>
           <div className="w-full h-64">
-            <Bar data={sentimentChartData} options={langBarOptions} />
+            <Bar
+              data={sentimentChartData}
+              options={{
+                ...langBarOptions,
+                plugins: {
+                  ...langBarOptions.plugins,
+                  legend: { display: true, position: 'bottom' },
+                  tooltip: {
+                    ...langBarOptions.plugins.tooltip,
+                    callbacks: {
+                      ...langBarOptions.plugins.tooltip.callbacks,
+                      afterLabel: function(context: any) {
+                        return 'Click to filter by sentiment';
+                      }
+                    }
+                  },
+                },
+                onClick: (evt: any, elements: any[]) => {
+                  if (elements && elements.length > 0) {
+                    const idx = elements[0].index;
+                    const label = sentimentLabels[idx];
+                    setSentimentFilter(label === sentimentFilter ? '' : label);
+                    setPage(1);
+                  }
+                },
+                scales: {
+                  ...langBarOptions.scales,
+                  x: {
+                    title: { display: true, text: 'Sentiment' },
+                  },
+                  y: {
+                    ...langBarOptions.scales.y,
+                    title: { display: true, text: 'Count' },
+                  },
+                },
+              }}
+            />
+            {sentimentFilter && (
+              <div className="mt-2 text-sm text-primary-600">Filtered by sentiment: <b>{sentimentFilter}</b> <button className="ml-2 underline" onClick={() => setSentimentFilter("")}>Clear</button></div>
+            )}
           </div>
         </div>
       </div>
@@ -460,7 +517,17 @@ export default function Dashboard() {
               spiral: 'archimedean',
               padding: 2,
             }}
+            callbacks={{
+              onWordClick: (word: any) => {
+                setKeywordFilter(word.text === keywordFilter ? '' : word.text);
+                setPage(1);
+              },
+              getWordTooltip: (word: any) => `${word.text}: ${word.value} (Click to filter)`
+            }}
           />
+          {keywordFilter && (
+            <div className="mt-2 text-sm text-primary-600">Filtered by keyword: <b>{keywordFilter}</b> <button className="ml-2 underline" onClick={() => setKeywordFilter("")}>Clear</button></div>
+          )}
         </div>
       </div>
       {/* --- New: Interactive Timeline of Events --- */}

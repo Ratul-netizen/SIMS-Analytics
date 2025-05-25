@@ -9,6 +9,7 @@ import json
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 import re
+from difflib import SequenceMatcher
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///E:/SIMS Analytics/backend/instance/SIMS_Analytics.db'
@@ -54,8 +55,7 @@ class IntMatch(db.Model):
     source     = db.Column(db.String, nullable=False)
     url        = db.Column(db.String)
 
-@app.cli.command('fetch-exa')
-def fetch_exa():
+def run_exa_ingestion():
     exa = Exa(api_key=EXA_API_KEY)
     print("Running advanced Exa ingestion for Bangladesh-related news coverage by Indian Media...")
     indian_and_bd_domains = [
@@ -224,6 +224,17 @@ def fetch_exa():
             db.session.rollback()
     print("\nDone.")
 
+# CLI command
+@app.cli.command('fetch-exa')
+def fetch_exa():
+    run_exa_ingestion()
+
+# Scheduler uses the same logic
+
+def scheduled_fetch():
+    with app.app_context():
+        run_exa_ingestion()
+
 @app.route('/api/articles')
 def list_articles():
     # Get query params
@@ -376,6 +387,21 @@ def dashboard():
     ]
     latest_news = Article.query.filter(Article.source.in_(indian_sources)).order_by(Article.published_at.desc()).all()
     latest_news_data = []
+    # Prepare sets of Bangladeshi and International sources
+    bd_sources = set([
+        'thedailystar.net', 'bdnews24.com', 'newagebd.net', 'tbsnews.net', 'dhakatribune.com', 'prothomalo.com', 'jugantor.com', 'kalerkantho.com', 'banglatribune.com', 'manabzamin.com', 'bssnews.net', 'observerbd.com', 'daily-sun.com', 'dailyjanakantha.com', 'thefinancialexpress.com.bd', 'unb.com.bd', 'risingbd.com', 'bangladeshpost.net', 'daily-bangladesh.com', 'bhorerkagoj.com', 'dailyinqilab.com', 'samakal.com', 'ittefaq.com.bd', 'amardesh.com', 'dailynayadiganta.com', 'dailysangram.com', 'dailyprotidinersangbad.com', 'dailyvorerpata.com', 'dailyshomoyeralo.com', 'dailyamadershomoy.com', 'dailykalerkantho.com', 'dailysangbad.com', 'dailysun.com', 'dailyasianage.com', 'dailyobserverbd.com', 'dailynewnation.com', 'dailyindependentbd.com', 'dailyjanata.com', 'dailyjagaran.com', 'dailyjagonews24.com', 'dailyjagonews.com', 'dailyjagonewsbd.com', 'dailyjagonews24bd.com', 'dailyjagonews24.com.bd', 'dailyjagonews24.net', 'dailyjagonews24.org', 'dailyjagonews24.info', 'dailyjagonews24.biz', 'dailyjagonews24.co', 'dailyjagonews24.in', 'dailyjagonews24.us', 'dailyjagonews24.uk', 'dailyjagonews24.ca', 'dailyjagonews24.au', 'dailyjagonews24.eu', 'dailyjagonews24.asia', 'dailyjagonews24.africa', 'dailyjagonews24.mobi', 'dailyjagonews24.tv', 'dailyjagonews24.fm', 'dailyjagonews24.am', 'dailyjagonews24.cc', 'dailyjagonews24.cn', 'dailyjagonews24.hk', 'dailyjagonews24.jp', 'dailyjagonews24.kr', 'dailyjagonews24.sg', 'dailyjagonews24.tw', 'dailyjagonews24.vn', 'dailyjagonews24.ph', 'dailyjagonews24.id', 'dailyjagonews24.my', 'dailyjagonews24.th', 'dailyjagonews24.pk', 'dailyjagonews24.lk', 'dailyjagonews24.bd', 'dailyjagonews24.in', 'dailyjagonews24.com.bd', 'dailyjagonews24.net.bd', 'dailyjagonews24.org.bd', 'dailyjagonews24.info.bd', 'dailyjagonews24.biz.bd', 'dailyjagonews24.co.bd', 'dailyjagonews24.in.bd', 'dailyjagonews24.us.bd', 'dailyjagonews24.uk.bd', 'dailyjagonews24.ca.bd', 'dailyjagonews24.au.bd', 'dailyjagonews24.eu.bd', 'dailyjagonews24.asia.bd', 'dailyjagonews24.africa.bd', 'dailyjagonews24.mobi.bd', 'dailyjagonews24.tv.bd', 'dailyjagonews24.fm.bd', 'dailyjagonews24.am.bd', 'dailyjagonews24.cc.bd', 'dailyjagonews24.cn.bd', 'dailyjagonews24.hk.bd', 'dailyjagonews24.jp.bd', 'dailyjagonews24.kr.bd', 'dailyjagonews24.sg.bd', 'dailyjagonews24.tw.bd', 'dailyjagonews24.vn.bd', 'dailyjagonews24.ph.bd', 'dailyjagonews24.id.bd', 'dailyjagonews24.my.bd', 'dailyjagonews24.th.bd', 'dailyjagonews24.pk.bd'])
+    intl_sources = set([
+        'bbc.com', 'cnn.com', 'aljazeera.com', 'reuters.com', 'apnews.com', 'theguardian.com', 'nytimes.com', 'washingtonpost.com', 'dw.com', 'france24.com', 'abc.net.au', 'cbc.ca', 'cbsnews.com', 'nbcnews.com', 'foxnews.com', 'sky.com', 'japantimes.co.jp', 'straitstimes.com', 'channelnewsasia.com', 'scmp.com', 'gulfnews.com', 'arabnews.com', 'rt.com', 'tass.com', 'sputniknews.com', 'chinadaily.com.cn', 'globaltimes.cn', 'lemonde.fr', 'spiegel.de', 'elpais.com', 'corriere.it', 'elpais.com', 'lefigaro.fr', 'asahi.com', 'mainichi.jp', 'yomiuri.co.jp', 'koreatimes.co.kr', 'joongang.co.kr', 'hankyoreh.com', 'latimes.com', 'usatoday.com', 'bloomberg.com', 'forbes.com', 'wsj.com', 'economist.com', 'ft.com', 'npr.org', 'voanews.com', 'rferl.org', 'cbc.ca', 'cna.com.tw', 'straitstimes.com', 'thetimes.co.uk', 'independent.co.uk', 'telegraph.co.uk', 'mirror.co.uk', 'express.co.uk', 'dailymail.co.uk', 'thesun.co.uk', 'metro.co.uk', 'eveningstandard.co.uk', 'irishtimes.com', 'rte.ie', 'heraldscotland.com', 'scotsman.com', 'thejournal.ie', 'breakingnews.ie', 'irishmirror.ie', 'irishnews.com', 'belfasttelegraph.co.uk', 'news.com.au', 'smh.com.au', 'theage.com.au', 'theaustralian.com.au', 'afr.com', 'thewest.com.au', 'perthnow.com.au', 'adelaidenow.com.au', 'couriermail.com.au', 'heraldsun.com.au', 'dailytelegraph.com.au', 'ntnews.com.au', 'canberratimes.com.au', 'themercury.com.au', 'examiner.com.au', 'illawarramercury.com.au', 'newcastleherald.com.au', 'sunshinecoastdaily.com.au', 'goldcoastbulletin.com.au', 'thechronicle.com.au', 'northernstar.com.au', 'dailyexaminer.com.au', 'dailymercury.com.au', 'themorningbulletin.com.au', 'frasercoastchronicle.com.au', 'news-mail.com.au', 'observer.com.au', 'qt.com.au', 'warwickdailynews.com.au', 'westernadvocate.com.au', 'westernmagazine.com.au', 'westerntimes.com.au', 'theland.com.au', 'stockandland.com.au', 'queenslandcountrylife.com.au', 'northqueenslandregister.com.au', 'farmonline.com.au', 'theweeklytimes.com.au', 'countryman.com.au', 'farmweekly.com.au', 'stockjournal.com.au', 'theadvocate.com.au', 'examiner.com.au', 'mercury.com.au', 'thecourier.com.au', 'ballaratcourier.com.au', 'thecourier.com.au', 'thecouriermail.com.au', 'theherald.com.au', 'theheraldsun.com.au', 'themercury.com.au', 'thewest.com.au', 'theage.com.au', 'smh.com.au', 'theaustralian.com.au', 'afr.com', 'thewest.com.au', 'perthnow.com.au', 'adelaidenow.com.au', 'couriermail.com.au', 'heraldsun.com.au', 'dailytelegraph.com.au', 'ntnews.com.au', 'canberratimes.com.au', 'themercury.com.au', 'examiner.com.au', 'illawarramercury.com.au', 'newcastleherald.com.au', 'sunshinecoastdaily.com.au', 'goldcoastbulletin.com.au', 'thechronicle.com.au', 'northernstar.com.au', 'dailyexaminer.com.au', 'dailymercury.com.au', 'themorningbulletin.com.au', 'frasercoastchronicle.com.au', 'news-mail.com.au', 'observer.com.au', 'qt.com.au', 'warwickdailynews.com.au', 'westernadvocate.com.au', 'westernmagazine.com.au', 'westerntimes.com.au', 'theland.com.au', 'stockandland.com.au', 'queenslandcountrylife.com.au', 'northqueenslandregister.com.au', 'farmonline.com.au', 'theweeklytimes.com.au', 'countryman.com.au', 'farmweekly.com.au', 'stockjournal.com.au'])
+
+    def get_domain(url):
+        try:
+            return url.split('/')[2].replace('www.', '')
+        except Exception:
+            return url
+
+    # Preload all articles for matching
+    all_articles = list(Article.query.all())
+
     for a in latest_news:
         # --- Filter: Only include news that mention Bangladesh in title or full text ---
         title_lower = (a.title or '').lower()
@@ -394,18 +420,45 @@ def dashboard():
             category = infer_category(a.title, a.full_text)
         if filter_category and category != filter_category:
             continue
+
+        # --- Fact-checking logic ---
+        # Find similar articles in BD and International sources (simple fuzzy match on title)
+        def similar(a, b):
+            return SequenceMatcher(None, a, b).ratio() > 0.7
+        bd_matches = [art for art in all_articles if get_domain(art.url) in bd_sources and similar((art.title or '').lower(), title_lower)]
+        intl_matches = [art for art in all_articles if get_domain(art.url) in intl_sources and similar((art.title or '').lower(), title_lower)]
+        agreements = 0
+        contradictions = 0
+        for match in bd_matches + intl_matches:
+            # Compare sentiment as a proxy for agreement
+            if match.sentiment and a.sentiment and match.sentiment.lower() == a.sentiment.lower():
+                agreements += 1
+            else:
+                contradictions += 1
+        if agreements > 0 and contradictions == 0:
+            fact_check = 'True'
+            reason = f"Matched with {agreements} sources, all agree."
+        elif contradictions > 0 and agreements == 0:
+            fact_check = 'False'
+            reason = f"Matched with {contradictions} sources, all contradict."
+        elif agreements > 0 and contradictions > 0:
+            fact_check = 'Mixed'
+            reason = f"Matched with {agreements} agreeing and {contradictions} contradicting sources."
+        else:
+            fact_check = 'Unverified'
+            reason = 'No matching articles found in Bangladeshi or International sources.'
+
         latest_news_data.append({
             'date': a.publishedDate if hasattr(a, 'publishedDate') else (a.published_at.isoformat() if a.published_at else None),
             'headline': a.title,
             'source': a.source if a.source and a.source.lower() != 'unknown' else 'Other',
             'category': category,
             'sentiment': normalize_sentiment(a.sentiment),
-            'fact_check': a.fact_check,
+            'fact_check': fact_check,
+            'fact_check_reason': reason,
             'detailsUrl': a.url,
             'id': a.id
         })
-    # Only return the latest 20 after filtering
-    latest_news_data = latest_news_data[:20]
 
     # Timeline of Key Events (use major headlines/dates)
     timeline_events = [
@@ -504,17 +557,9 @@ def dashboard():
         'predictions': predictions
     })
 
-def scheduled_fetch():
-    with app.app_context():
-        fetch_exa()
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(scheduled_fetch, 'interval', minutes=10)
-scheduler.start()
-
 @app.route('/api/fetch-latest', methods=['POST'])
 def fetch_latest_api():
-    fetch_exa()
+    run_exa_ingestion()
     return jsonify({'status': 'success', 'message': 'Fetched latest news from Exa.'})
 
 if __name__ == '__main__':
