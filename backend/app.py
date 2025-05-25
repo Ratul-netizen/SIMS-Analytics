@@ -229,11 +229,10 @@ def run_exa_ingestion():
 def fetch_exa():
     run_exa_ingestion()
 
-# Scheduler uses the same logic
-
-def scheduled_fetch():
-    with app.app_context():
-        run_exa_ingestion()
+# Scheduler uses the ingestion logic directly
+scheduler = BackgroundScheduler()
+scheduler.add_job(lambda: run_exa_ingestion(), 'interval', minutes=10)
+scheduler.start()
 
 @app.route('/api/articles')
 def list_articles():
