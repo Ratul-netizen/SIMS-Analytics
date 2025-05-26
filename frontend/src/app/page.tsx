@@ -49,6 +49,12 @@ export default function Dashboard() {
   const [sentimentFilter, setSentimentFilter] = useState<string>("");
   const [keywordFilter, setKeywordFilter] = useState<string>("");
   const [factCheckTooltip, setFactCheckTooltip] = useState<{ show: boolean, text: string, x: number, y: number }>({ show: false, text: '', x: 0, y: 0 });
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const sentimentOptions = ["", "Positive", "Negative", "Neutral", "Cautious"];
+  const categoryOptions = useMemo(() => {
+    const catSet = new Set((data?.latestIndianNews || []).map((item: any) => String(item.category || "")).filter(Boolean));
+    return ["", ...Array.from(catSet) as string[]];
+  }, [data]);
 
   // Fetch Indian sources for dropdown
   useEffect(() => {
@@ -93,7 +99,8 @@ export default function Dashboard() {
   const paginatedNews = () => {
     if (!data?.latestIndianNews) return [];
     let filtered = [...data.latestIndianNews];
-    if (sentimentFilter) filtered = filtered.filter(item => item.sentiment === sentimentFilter);
+    if (sentimentFilter) filtered = filtered.filter(item => (item.sentiment || "").toLowerCase() === sentimentFilter.toLowerCase());
+    if (categoryFilter) filtered = filtered.filter(item => (item.category || "").toLowerCase() === categoryFilter.toLowerCase());
     if (keywordFilter) filtered = filtered.filter(item => (item.headline || '').toLowerCase().includes(keywordFilter.toLowerCase()));
     let sorted = [...filtered];
     sorted.sort((a, b) => {
@@ -352,20 +359,133 @@ export default function Dashboard() {
   return (
     <div className="container mx-auto px-2 md:px-4 py-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-        <h1 className="text-4xl font-extrabold">SIMS Analytics Dashboard</h1>
-        <div className="flex gap-2 items-center flex-wrap">
-          <input type="date" name="start" value={dateRange.start} onChange={handleDateChange} className="border rounded px-2 py-1" />
-          <span>-</span>
-          <input type="date" name="end" value={dateRange.end} onChange={handleDateChange} className="border rounded px-2 py-1" />
-          <button className="btn-primary ml-2" onClick={handleDateFilter} disabled={tableLoading}>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 bg-white p-4 rounded-xl shadow">
+        <h1 className="text-4xl font-extrabold mb-4 md:mb-0 whitespace-nowrap">SIMS Analytics Dashboard</h1>
+        <div className="flex flex-wrap gap-1 items-center justify-end">
+          <input type="date" name="start" value={dateRange.start} onChange={handleDateChange} className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition" />
+          <span className="font-bold text-base">-</span>
+          <input type="date" name="end" value={dateRange.end} onChange={handleDateChange} className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition" />
+          <label htmlFor="source" className="font-medium ml-1 text-sm">Source:</label>
+          <select
+            id="source"
+            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+            value={source}
+            onChange={async (e) => {
+              setSource(e.target.value);
+              setPage(1);
+              await fetchDashboard(dateRange, e.target.value);
+            }}
+          >
+            <option value="">All</option>
+            {sources.map((src) => (
+              <option key={src.domain} value={src.domain}>{src.name}</option>
+            ))}
+          </select>
+          <label htmlFor="sentiment" className="font-medium ml-1 text-sm">Sentiment:</label>
+          <select
+            id="sentiment"
+            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+            value={sentimentFilter}
+            onChange={e => { setSentimentFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">All</option>
+            <option value="Positive">Positive</option>
+            <option value="Negative">Negative</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Cautious">Cautious</option>
+          </select>
+          <label htmlFor="category" className="font-medium ml-1 text-sm">Category:</label>
+          <select
+            id="category"
+            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+            value={categoryFilter}
+            onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">All</option>
+            {categoryOptions.filter(opt => opt).map(opt => {
+              const val = String(opt);
+              return <option key={val} value={val}>{val}</option>;
+            })}
+          </select>
+          <button className="bg-primary-600 text-white font-semibold px-4 py-1.5 rounded shadow hover:bg-primary-700 transition ml-1 text-sm" onClick={handleDateFilter} disabled={tableLoading}>
             {tableLoading ? "Loading..." : "Update Now"}
+          </button>
+          <button
+            className="ml-1 px-4 py-1.5 rounded border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm"
+            onClick={async () => {
+              setDateRange({ start: "", end: "" });
+              setSource("");
+              setSentimentFilter("");
+              setCategoryFilter("");
+              setPage(1);
+              await fetchDashboard({ start: "", end: "" }, "");
+            }}
+          >
+            Reset Filters
           </button>
         </div>
       </div>
 
-      {/* Latest Indian News Monitoring */}
-      <div className="card mb-8">
+      {/* Show alert for negative sentiment spike immediately after news box */}
+      {(() => {
+        if (!data.latestIndianNews || data.latestIndianNews.length < 5) return null;
+        const sentiments = data.latestIndianNews.map((item: any) => (item.sentiment || '').toLowerCase().trim());
+        const negativeCount = sentiments.filter((s: string) => s === 'negative').length;
+        const negativeSpike = negativeCount > data.latestIndianNews.length * 0.5;
+        if (negativeSpike) {
+          return (
+            <div className="bg-red-100 text-red-700 rounded-lg shadow p-4 mb-8 font-semibold">
+              Alert: Negative sentiment spike detected in recent news!
+            </div>
+          );
+        }
+        return null;
+      })()}
+      {/* Dashboard Visualizations */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        {/* Language Distribution Pie Chart */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaGlobe /> Language Distribution</h3>
+          <div className="w-full h-64">
+            <Pie data={langChartData} options={langPieOptions} />
+          </div>
+        </div>
+        {/* Sentiment Pie Chart (replaces Bar chart) */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center h-full">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment (All)</h3>
+          <div className="flex justify-center items-center w-full h-64">
+            <Pie data={sentimentChartData} options={{ plugins: { legend: { position: 'bottom' } } }} />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        {/* FactCheck Pie Chart */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center h-full">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCheckCircle /> FactCheck Distribution</h3>
+          <div className="flex justify-center items-center w-full h-64">
+            <Pie data={factCheckPieData} options={{ plugins: { legend: { position: 'bottom' } } }} />
+          </div>
+        </div>
+        {/* Category Bar Chart */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Category Distribution</h3>
+          <div className="w-full h-64">
+            <Bar data={categoryBarData} options={langBarOptions} />
+          </div>
+        </div>
+      </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {getSentimentStats(data.toneSentiment).map(stat => (
+          <div key={stat.label} className={`flex flex-col items-center bg-white rounded-lg shadow p-4 ${stat.color}`}>
+            <div className="text-2xl mb-2">{stat.icon}</div>
+            <div className="text-lg font-bold">{stat.value}</div>
+            <div className="text-sm">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+        {/* Latest Indian News Monitoring */}
+        <div className="card mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
           <h2 className="text-2xl font-bold">Latest Indian News</h2>
           <div className="flex gap-2 items-center">
@@ -492,63 +612,6 @@ export default function Dashboard() {
             </button>
           </div>
         )}
-      </div>
-      {/* Show alert for negative sentiment spike immediately after news box */}
-      {(() => {
-        if (!data.latestIndianNews) return null;
-        const sentiments = data.latestIndianNews.map((item: any) => item.sentiment);
-        const negativeSpike = sentiments.filter((s: string) => s === 'Negative').length > data.latestIndianNews.length * 0.5;
-        if (negativeSpike) {
-          return (
-            <div className="bg-red-100 text-red-700 rounded-lg shadow p-4 mb-8 font-semibold">
-              Alert: Negative sentiment spike detected in recent news!
-            </div>
-          );
-        }
-        return null;
-      })()}
-      {/* Dashboard Visualizations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* Language Distribution Pie Chart */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaGlobe /> Language Distribution</h3>
-          <div className="w-full h-64">
-            <Pie data={langChartData} options={langPieOptions} />
-          </div>
-        </div>
-        {/* Sentiment Pie Chart (replaces Bar chart) */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center h-full">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment (All)</h3>
-          <div className="flex justify-center items-center w-full h-64">
-            <Pie data={sentimentChartData} options={{ plugins: { legend: { position: 'bottom' } } }} />
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* FactCheck Pie Chart */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center h-full">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCheckCircle /> FactCheck Distribution</h3>
-          <div className="flex justify-center items-center w-full h-64">
-            <Pie data={factCheckPieData} options={{ plugins: { legend: { position: 'bottom' } } }} />
-          </div>
-        </div>
-        {/* Category Bar Chart */}
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Category Distribution</h3>
-          <div className="w-full h-64">
-            <Bar data={categoryBarData} options={langBarOptions} />
-          </div>
-        </div>
-      </div>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {getSentimentStats(data.toneSentiment).map(stat => (
-          <div key={stat.label} className={`flex flex-col items-center bg-white rounded-lg shadow p-4 ${stat.color}`}>
-            <div className="text-2xl mb-2">{stat.icon}</div>
-            <div className="text-lg font-bold">{stat.value}</div>
-            <div className="text-sm">{stat.label}</div>
-          </div>
-        ))}
       </div>
       {/* Top Entities (NER) word cloud */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
