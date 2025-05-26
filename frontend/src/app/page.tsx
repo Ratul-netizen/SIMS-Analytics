@@ -273,6 +273,66 @@ export default function Dashboard() {
     return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 30);
   };
 
+  // --- FactCheck Pie Chart Data ---
+  const factCheckCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (data?.latestIndianNews || []).forEach((item: any) => {
+      const val = item.fact_check || 'Unverified';
+      counts[val] = (counts[val] || 0) + 1;
+    });
+    return counts;
+  }, [data]);
+  const factCheckLabels = Object.keys(factCheckCounts);
+  const factCheckValues = Object.values(factCheckCounts);
+  const factCheckPieData = {
+    labels: factCheckLabels,
+    datasets: [
+      {
+        data: factCheckValues,
+        backgroundColor: [
+          '#22c55e', // True - green
+          '#ef4444', // False - red
+          '#fbbf24', // Mixed - yellow
+          '#a3a3a3', // Unverified - gray
+        ],
+      },
+    ],
+  };
+
+  // --- Category Bar Chart Data ---
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (data?.latestIndianNews || []).forEach((item: any) => {
+      const val = item.category || 'General';
+      counts[val] = (counts[val] || 0) + 1;
+    });
+    return counts;
+  }, [data]);
+  const categoryLabels = Object.keys(categoryCounts);
+  const categoryValues = Object.values(categoryCounts);
+  const categoryBarData = {
+    labels: categoryLabels,
+    datasets: [
+      {
+        label: 'Articles',
+        data: categoryValues,
+        backgroundColor: '#3b82f6',
+      },
+    ],
+  };
+
+  // --- NER Top Entities from backend ---
+  const getNEREntities = (news: any[]) => {
+    const freq: Record<string, number> = {};
+    news.forEach(item => {
+      (item.entities || []).forEach((entity: string) => {
+        if (entity.length > 2) freq[entity] = (freq[entity] || 0) + 1;
+      });
+    });
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  };
+  const nerKeywords = useMemo(() => getNEREntities(data?.latestIndianNews || []), [data]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -456,50 +516,27 @@ export default function Dashboard() {
             <Pie data={langChartData} options={langPieOptions} />
           </div>
         </div>
-        {/* Sentiment Bar Chart */}
+        {/* Sentiment Pie Chart (replaces Bar chart) */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center h-full">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment (All)</h3>
+          <div className="flex justify-center items-center w-full h-64">
+            <Pie data={sentimentChartData} options={{ plugins: { legend: { position: 'bottom' } } }} />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        {/* FactCheck Pie Chart */}
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center h-full">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCheckCircle /> FactCheck Distribution</h3>
+          <div className="flex justify-center items-center w-full h-64">
+            <Pie data={factCheckPieData} options={{ plugins: { legend: { position: 'bottom' } } }} />
+          </div>
+        </div>
+        {/* Category Bar Chart */}
         <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment Analysis</h3>
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Category Distribution</h3>
           <div className="w-full h-64">
-            <Bar
-              data={sentimentChartData}
-              options={{
-                ...langBarOptions,
-                plugins: {
-                  ...langBarOptions.plugins,
-                  legend: { display: true, position: 'bottom' },
-                  tooltip: {
-                    ...langBarOptions.plugins.tooltip,
-                    callbacks: {
-                      ...langBarOptions.plugins.tooltip.callbacks,
-                      afterLabel: function(context: any) {
-                        return 'Click to filter by sentiment';
-                      }
-                    }
-                  },
-                },
-                onClick: (evt: any, elements: any[]) => {
-                  if (elements && elements.length > 0) {
-                    const idx = elements[0].index;
-                    const label = sentimentLabels[idx];
-                    setSentimentFilter(label === sentimentFilter ? '' : label);
-                    setPage(1);
-                  }
-                },
-                scales: {
-                  ...langBarOptions.scales,
-                  x: {
-                    title: { display: true, text: 'Sentiment' },
-                  },
-                  y: {
-                    ...langBarOptions.scales.y,
-                    title: { display: true, text: 'Count' },
-                  },
-                },
-              }}
-            />
-            {sentimentFilter && (
-              <div className="mt-2 text-sm text-primary-600">Filtered by sentiment: <b>{sentimentFilter}</b> <button className="ml-2 underline" onClick={() => setSentimentFilter("")}>Clear</button></div>
-            )}
+            <Bar data={categoryBarData} options={langBarOptions} />
           </div>
         </div>
       </div>
@@ -513,19 +550,20 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      {/* Word Cloud */}
+      {/* Top Entities (NER) word cloud */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><FaCloud className="text-primary-500" /> Top Keywords</h3>
-        <div className="w-full h-96">
+        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><FaCloud className="text-primary-500" /> Top Entities (NER)</h3>
+        <div className="w-full h-[32rem]">
           <ReactWordcloud
-            words={getTopKeywords(data.latestIndianNews).map(([word, count]) => ({ text: word, value: count }))}
+            words={nerKeywords.map(([word, count]) => ({ text: word, value: count }))}
             options={{
-              rotations: 1,
-              rotationAngles: [0, 0],
-              fontSizes: [16, 40] as any,
+              rotations: 2,
+              rotationAngles: [0, 90],
+              fontSizes: [18, 60],
               fontFamily: 'inherit',
+              padding: 3,
               colors: [
-                '#0ea5e9', '#22c55e', '#fbbf24', '#f43f5e', '#a78bfa', '#f59e42', '#fbbf24', '#a3e635', '#f472b6', '#818cf8'
+                '#0ea5e9', '#22c55e', '#fbbf24', '#f43f5e', '#a78bfa', '#f59e42', '#a3e635', '#f472b6', '#818cf8'
               ],
               enableTooltip: true,
               deterministic: false,
@@ -533,16 +571,9 @@ export default function Dashboard() {
               spiral: 'archimedean',
             }}
             callbacks={{
-              onWordClick: (word: any) => {
-                setKeywordFilter(word.text === keywordFilter ? '' : word.text);
-                setPage(1);
-              },
-              getWordTooltip: (word: any) => `${word.text}: ${word.value} (Click to filter)`
+              getWordTooltip: (word: any) => `${word.text}: ${word.value}`
             }}
           />
-          {keywordFilter && (
-            <div className="mt-2 text-sm text-primary-600">Filtered by keyword: <b>{keywordFilter}</b> <button className="ml-2 underline" onClick={() => setKeywordFilter("")}>Clear</button></div>
-          )}
         </div>
       </div>
       {/* --- New: Interactive Timeline of Events --- */}

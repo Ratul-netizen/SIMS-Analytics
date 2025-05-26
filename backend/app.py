@@ -10,6 +10,8 @@ from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 import re
 from difflib import SequenceMatcher
+import spacy
+from collections import Counter
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///E:/SIMS Analytics/backend/instance/SIMS_Analytics.db'
@@ -22,6 +24,9 @@ CORS(app)
 
 load_dotenv()
 EXA_API_KEY = os.getenv('EXA_API_KEY')
+
+# Load spaCy model once at startup
+nlp = spacy.load('en_core_web_sm')
 
 class Article(db.Model):
     id           = db.Column(db.Integer, primary_key=True)
@@ -502,6 +507,11 @@ def dashboard():
             fact_check = 'Unverified'
             reason = 'No matching articles found in Bangladeshi or International sources.'
 
+        # --- NER extraction ---
+        text_for_ner = (a.title or '') + '\n' + (a.full_text or '')
+        doc = nlp(text_for_ner)
+        entities = list(set([ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE', 'LOC', 'PRODUCT', 'EVENT', 'WORK_OF_ART', 'LAW', 'LANGUAGE']]))
+
         latest_news_data.append({
             'date': a.publishedDate if hasattr(a, 'publishedDate') else (a.published_at.isoformat() if a.published_at else None),
             'headline': a.title,
@@ -511,19 +521,20 @@ def dashboard():
             'fact_check': fact_check,
             'fact_check_reason': reason,
             'detailsUrl': a.url,
-            'id': a.id
+            'id': a.id,
+            'entities': entities
         })
 
-    # Timeline of Key Events (use major headlines/dates)
+    # Timeline of Key Events (use major headlines/dates from filtered news)
     timeline_events = [
         {
-            'date': a.publishedDate if hasattr(a, 'publishedDate') else (a.published_at.isoformat() if a.published_at else None),
-            'event': a.title
+            'date': item['date'],
+            'event': item['headline']
         }
-        for a in Article.query.order_by(Article.published_at.desc()).limit(20).all()
+        for item in latest_news_data[:20]
     ]
 
-    # Language Press Comparison (distribution by language, if available)
+    # Language Press Comparison (distribution by language, from filtered news)
     language_map = {
         'timesofindia.indiatimes.com': 'English',
         'hindustantimes.com': 'English',
@@ -550,28 +561,21 @@ def dashboard():
         'india.com': 'English',
     }
     lang_dist = {}
-    for a in Article.query:
-        lang = language_map.get(a.source, 'Other')
+    for item in latest_news_data:
+        lang = language_map.get(item['source'], 'Other')
         lang_dist[lang] = lang_dist.get(lang, 0) + 1
 
-    # Fact-Checking: Cross-Media Comparison (agreement/verification stats)
-    total_articles = Article.query.count()
-    agreement = Article.query.filter(Article.fact_check == 'True').count()
+    # Fact-Checking: Cross-Media Comparison (from filtered news)
+    agreement = sum(1 for item in latest_news_data if item['fact_check'] == 'True')
     verification_status = 'Verified' if agreement > 0 else 'Unverified'
 
-    # Key Sources Used (top 5 sources)
-    from collections import Counter
-    sources = [a.source if a.source and a.source.lower() != 'unknown' else 'Other' for a in Article.query]
-    top_sources = [s for s, _ in Counter(sources).most_common(5)]
-
-    # Tone/Sentiment Analysis (counts, normalized and merged)
-    sentiments = [normalize_sentiment(a.sentiment) for a in Article.query]
+    # Tone/Sentiment Analysis (from filtered news)
+    sentiments = [item['sentiment'] for item in latest_news_data]
     sentiment_counts_raw = Counter(sentiments)
-    # Only allow the canonical keys
     allowed_keys = ['Negative', 'Neutral', 'Positive', 'Cautious']
     sentiment_counts = {k: sentiment_counts_raw.get(k, 0) for k in allowed_keys if sentiment_counts_raw.get(k, 0) > 0}
 
-    # Implications & Analysis (from fact_check, sentiment)
+    # Implications & Analysis (from filtered news)
     implications = []
     if sentiment_counts.get('Negative', 0) > sentiment_counts.get('Positive', 0):
         implications.append({'type': 'Political Stability', 'impact': 'High'})
@@ -580,7 +584,7 @@ def dashboard():
     if sentiment_counts.get('Neutral', 0) > 0:
         implications.append({'type': 'Social Cohesion', 'impact': 'Low'})
 
-    # Prediction (Outlook) (from recent trends)
+    # Prediction (Outlook) (keep as is or base on filtered news if needed)
     predictions = [
         {
             'category': 'Political Landscape',
@@ -596,6 +600,10 @@ def dashboard():
         }
     ]
 
+    # Key Sources Used (all unique sources in the current filtered/latest news, sorted)
+    sources_in_latest = [item['source'] for item in latest_news_data if item['source'] and item['source'].lower() != 'unknown']
+    key_sources = sorted(set(sources_in_latest))
+
     return jsonify({
         'latestIndianNews': latest_news_data,
         'timelineEvents': timeline_events,
@@ -605,7 +613,7 @@ def dashboard():
             'internationalAgreement': 0,  # Placeholder
             'verificationStatus': verification_status
         },
-        'keySources': top_sources,
+        'keySources': key_sources,
         'toneSentiment': sentiment_counts,
         'implications': implications,
         'predictions': predictions
