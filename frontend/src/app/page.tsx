@@ -329,7 +329,7 @@ export default function Dashboard() {
         if (entity.length > 2) freq[entity] = (freq[entity] || 0) + 1;
       });
     });
-    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 20);
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 35);
   };
   const nerKeywords = useMemo(() => getNEREntities(data?.latestIndianNews || []), [data]);
 
@@ -553,25 +553,25 @@ export default function Dashboard() {
       {/* Top Entities (NER) word cloud */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><FaCloud className="text-primary-500" /> Top Entities (NER)</h3>
-        <div className="w-full h-[32rem]">
+        <div className="w-full h-[24rem]">
           <ReactWordcloud
             words={nerKeywords.map(([word, count]) => ({ text: word, value: count }))}
             options={{
-              rotations: 2,
-              rotationAngles: [0, 90],
-              fontSizes: [18, 60],
-              fontFamily: 'inherit',
-              padding: 3,
-              colors: [
-                '#0ea5e9', '#22c55e', '#fbbf24', '#f43f5e', '#a78bfa', '#f59e42', '#a3e635', '#f472b6', '#818cf8'
-              ],
+              rotations: 0,
+              rotationAngles: [0, 0],
+              fontSizes: [16, 48] as [number, number],
+              fontFamily: 'system-ui',
+              padding: 4,
+              colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd'],
               enableTooltip: true,
-              deterministic: false,
-              scale: 'sqrt',
+              deterministic: true,
+              scale: 'linear',
               spiral: 'archimedean',
+              transitionDuration: 1000
             }}
             callbacks={{
-              getWordTooltip: (word: any) => `${word.text}: ${word.value}`
+              getWordTooltip: (word: any) => `${word.text}: ${word.value}`,
+              onWordClick: (word: any) => console.log(`Clicked: ${word.text}`)
             }}
           />
         </div>
@@ -739,16 +739,22 @@ export default function Dashboard() {
       {data.factChecking && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">Fact-Checking: Cross-Media Comparison</h3>
+          <div className="mb-2 text-gray-600 text-sm">Last Updated: {data.factChecking.lastUpdated ? new Date(data.factChecking.lastUpdated).toLocaleString() : 'N/A'}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="font-bold mb-2">Bangladeshi Sources</div>
-              <div>Agreement: {data.factChecking.bangladeshiAgreement}</div>
-              <div>Verification Status: {data.factChecking.verificationStatus}</div>
-            </div>
-            <div>
-              <div className="font-bold mb-2">International Sources</div>
-              <div>Agreement: {data.factChecking.internationalAgreement}</div>
-            </div>
+            {Object.entries(data.factChecking.verdictCounts || {}).map(([verdict, count]: [string, any]) => (
+              <div key={verdict} className="p-4 border rounded bg-gray-50">
+                <div className="font-bold mb-1">{verdict} <span className="text-gray-500 font-normal">({count as number})</span></div>
+                {(data.factChecking.verdictSamples?.[verdict] || []).length > 0 ? (
+                  <ul className="list-disc ml-5 text-xs text-gray-700">
+                    {data.factChecking.verdictSamples[verdict].map((sample: any, idx: number) => (
+                      <li key={idx}><span className="font-semibold">{sample.headline}</span> <span className="text-gray-500">({sample.source}, {sample.date ? new Date(sample.date).toLocaleDateString() : 'N/A'})</span></li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-xs text-gray-400">No samples</div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

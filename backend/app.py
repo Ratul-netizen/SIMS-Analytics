@@ -158,7 +158,10 @@ def run_exa_ingestion():
                 return default
             art = Article.query.filter_by(url=item.url).first() or Article(url=item.url)
             art.title = item.title
-            art.published_at = datetime.datetime.fromisoformat(item.published_date.replace('Z','+00:00'))
+            if item.published_date:
+                art.published_at = datetime.datetime.fromisoformat(item.published_date.replace('Z','+00:00'))
+            else:
+                art.published_at = None
             # Author extraction: if missing, try to extract from text
             art.author = getattr(item, 'author', None)
             if not art.author and item.text:
@@ -250,8 +253,13 @@ def fetch_exa():
     run_exa_ingestion()
 
 # Scheduler uses the ingestion logic directly
+def run_exa_ingestion_with_context():
+    print(f"[{datetime.datetime.now()}] Scheduled Exa ingestion running...")
+    with app.app_context():
+        run_exa_ingestion()
+
 scheduler = BackgroundScheduler()
-scheduler.add_job(lambda: run_exa_ingestion(), 'interval', minutes=10)
+scheduler.add_job(run_exa_ingestion_with_context, 'interval', minutes=10)
 scheduler.start()
 
 @app.route('/api/articles')
@@ -575,28 +583,68 @@ def dashboard():
     allowed_keys = ['Negative', 'Neutral', 'Positive', 'Cautious']
     sentiment_counts = {k: sentiment_counts_raw.get(k, 0) for k in allowed_keys if sentiment_counts_raw.get(k, 0) > 0}
 
-    # Implications & Analysis (from filtered news)
-    implications = []
-    if sentiment_counts.get('Negative', 0) > sentiment_counts.get('Positive', 0):
-        implications.append({'type': 'Political Stability', 'impact': 'High'})
-    if sentiment_counts.get('Positive', 0) > 0:
-        implications.append({'type': 'Economic Impact', 'impact': 'Medium'})
-    if sentiment_counts.get('Neutral', 0) > 0:
-        implications.append({'type': 'Social Cohesion', 'impact': 'Low'})
+    # --- Fact-checking verdict counts and samples ---
+    verdict_counts = {'True': 0, 'False': 0, 'Mixed': 0, 'Unverified': 0}
+    verdict_samples = {'True': [], 'False': [], 'Mixed': [], 'Unverified': []}
+    last_updated = None
+    for item in latest_news_data:
+        v = item['fact_check']
+        verdict_counts[v] = verdict_counts.get(v, 0) + 1
+        if len(verdict_samples[v]) < 3:
+            verdict_samples[v].append({'headline': item['headline'], 'source': item['source'], 'date': item['date']})
+        # Track last updated
+        if not last_updated or (item['date'] and item['date'] > last_updated):
+            last_updated = item['date']
 
-    # Prediction (Outlook) (keep as is or base on filtered news if needed)
+    # --- Enhanced Implications & Analysis ---
+    implications = []
+    neg = sentiment_counts.get('Negative', 0)
+    pos = sentiment_counts.get('Positive', 0)
+    neu = sentiment_counts.get('Neutral', 0)
+    total = sum(sentiment_counts.values())
+    if total > 0:
+        neg_ratio = neg / total
+        pos_ratio = pos / total
+        neu_ratio = neu / total
+        if neg_ratio > 0.6:
+            implications.append({'type': 'Political Stability', 'impact': 'Very High'})
+        elif neg > pos:
+            implications.append({'type': 'Political Stability', 'impact': 'High'})
+        if pos_ratio > 0.5:
+            implications.append({'type': 'Economic Impact', 'impact': 'Strong Positive'})
+        elif pos > 0:
+            implications.append({'type': 'Economic Impact', 'impact': 'Medium'})
+        if neu_ratio > 0.4:
+            implications.append({'type': 'Social Cohesion', 'impact': 'Balanced'})
+        elif neu > 0:
+            implications.append({'type': 'Social Cohesion', 'impact': 'Low'})
+
+    # --- Data-driven Predictions ---
+    trend = None
+    if total > 5:
+        # Compare last 5 vs previous 5
+        last5 = [item['sentiment'] for item in latest_news_data[-5:]]
+        prev5 = [item['sentiment'] for item in latest_news_data[-10:-5]]
+        last5_neg = last5.count('Negative')
+        prev5_neg = prev5.count('Negative')
+        if last5_neg > prev5_neg:
+            trend = 'Negative sentiment is rising.'
+        elif last5_neg < prev5_neg:
+            trend = 'Negative sentiment is falling.'
+        else:
+            trend = 'Negative sentiment is stable.'
     predictions = [
         {
             'category': 'Political Landscape',
-            'likelihood': 88,
+            'likelihood': min(95, 80 + (neg_ratio * 20) if total > 0 else 80),
             'timeFrame': 'Next 3 months',
-            'details': 'Increased political activity and protests expected as election preparations continue.'
+            'details': f'Political unrest likelihood: {trend or "Stable"} Based on recent sentiment.'
         },
         {
             'category': 'Economic Implications',
-            'likelihood': 85,
+            'likelihood': min(95, 80 + (pos_ratio * 20) if total > 0 else 80),
             'timeFrame': 'Next 6 months',
-            'details': 'Economic indicators suggest continued growth with potential for increased foreign investment.'
+            'details': f'Economic outlook: {"Positive" if pos_ratio > 0.5 else "Cautious"}. Based on recent sentiment.'
         }
     ]
 
@@ -609,6 +657,9 @@ def dashboard():
         'timelineEvents': timeline_events,
         'languageDistribution': lang_dist,
         'factChecking': {
+            'verdictCounts': verdict_counts,
+            'verdictSamples': verdict_samples,
+            'lastUpdated': last_updated,
             'bangladeshiAgreement': agreement,
             'internationalAgreement': 0,  # Placeholder
             'verificationStatus': verification_status

@@ -702,6 +702,9 @@ video {
 .mt-4 {
   margin-top: 1rem;
 }
+.ml-5 {
+  margin-left: 1.25rem;
+}
 .inline-block {
   display: inline-block;
 }
@@ -740,6 +743,9 @@ video {
 }
 .h-\[32rem\] {
   height: 32rem;
+}
+.h-\[24rem\] {
+  height: 24rem;
 }
 .min-h-\[120px\] {
   min-height: 120px;
@@ -1204,6 +1210,9 @@ video {
 .font-semibold {
   font-weight: 600;
 }
+.font-normal {
+  font-weight: 400;
+}
 .italic {
   font-style: italic;
 }
@@ -1309,6 +1318,10 @@ video {
 .text-yellow-700 {
   --tw-text-opacity: 1;
   color: rgb(161 98 7 / var(--tw-text-opacity, 1));
+}
+.text-gray-600 {
+  --tw-text-opacity: 1;
+  color: rgb(75 85 99 / var(--tw-text-opacity, 1));
 }
 .underline {
   text-decoration-line: underline;
