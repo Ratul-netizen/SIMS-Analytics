@@ -415,6 +415,9 @@ def dashboard():
     # Get category and source filter from query params
     filter_category = request.args.get('category')
     filter_source = request.args.get('source')
+    # --- Date range filter ---
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
     # Latest Indian News Monitoring (limit 20, Indian sources only)
     indian_sources = [
         "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com"
@@ -422,6 +425,20 @@ def dashboard():
     latest_news_query = Article.query.filter(Article.source.in_(indian_sources))
     if filter_source:
         latest_news_query = latest_news_query.filter(Article.source == filter_source)
+    # --- Apply date filter if provided ---
+    if start_date:
+        try:
+            start_dt = datetime.datetime.fromisoformat(start_date)
+            latest_news_query = latest_news_query.filter(Article.published_at >= start_dt)
+        except Exception:
+            pass
+    if end_date:
+        try:
+            # Add 1 day to include the end date fully
+            end_dt = datetime.datetime.fromisoformat(end_date) + datetime.timedelta(days=1)
+            latest_news_query = latest_news_query.filter(Article.published_at < end_dt)
+        except Exception:
+            pass
     latest_news = latest_news_query.order_by(Article.published_at.desc()).all()
     latest_news_data = []
     # Prepare sets of Bangladeshi and International sources
