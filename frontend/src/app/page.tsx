@@ -35,8 +35,54 @@ ChartJS.register(
 
 const PAGE_SIZE = 10;
 
+interface NewsItem {
+  id: string;
+  headline: string;
+  date: string;
+  url: string;
+  news_category: string;
+  category: string;
+  sentiment: string;
+  sentiment_toward_bangladesh: string;
+  fact_check: {
+    status: string;
+  };
+  source_domain: string;
+  source: string;
+  media_coverage_summary: {
+    bangladeshi_media: string;
+    international_media: string;
+  };
+  credibility_score: number;
+  [key: string]: any; // Add index signature for dynamic property access
+}
+
+interface DashboardData {
+  latestIndianNews: NewsItem[];
+  languageDistribution: {
+    [key: string]: number;
+  };
+  toneSentiment: {
+    [key: string]: number;
+  };
+  implications: {
+    [key: string]: string[];
+  };
+  predictions: {
+    [key: string]: string[];
+  };
+  factChecking: {
+    [key: string]: {
+      status: string;
+      sources: string[];
+      samples?: any[];
+    };
+  };
+  keySources?: string[];
+}
+
 export default function Dashboard() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string>("date");
@@ -203,13 +249,54 @@ export default function Dashboard() {
     },
   };
 
-  // Pie/Bar data for sentiment
+  // Sentiment color map for charts and badges
   const sentimentColorMap: Record<string, string> = {
-    Negative: "#ef4444", // red-500
-    Neutral: "#3b82f6",  // blue-500
-    Positive: "#22c55e", // green-500
-    Cautious: "#fbbf24", // yellow-400
+    Positive: "bg-green-100 text-green-700 border-green-300",
+    Negative: "bg-red-100 text-red-700 border-red-300",
+    Neutral: "bg-blue-100 text-blue-700 border-blue-300",
+    Cautious: "bg-yellow-100 text-yellow-700 border-yellow-300",
   };
+  const sentimentChartColorMap: Record<string, string> = {
+    Positive: "#22c55e",   // green
+    Negative: "#ef4444",   // red
+    Neutral: "#3b82f6",    // blue
+    Cautious: "#fbbf24",   // yellow
+  };
+
+  // Category color map for badges
+  const categoryColorMap: Record<string, string> = {
+    Politics: "bg-blue-100 text-blue-700 border-blue-300",
+    Economy: "bg-yellow-100 text-yellow-700 border-yellow-300",
+    Crime: "bg-red-100 text-red-700 border-red-300",
+    Environment: "bg-emerald-100 text-emerald-700 border-emerald-300",
+    Health: "bg-green-100 text-green-700 border-green-300",
+    Technology: "bg-pink-100 text-pink-700 border-pink-300",
+    Diplomacy: "bg-indigo-100 text-indigo-700 border-indigo-300",
+    Sports: "bg-orange-100 text-orange-700 border-orange-300",
+    Culture: "bg-purple-100 text-purple-700 border-purple-300",
+    General: "bg-gray-100 text-gray-700 border-gray-300",
+    World: "bg-cyan-100 text-cyan-700 border-cyan-300",
+    SouthAsia: "bg-teal-100 text-teal-700 border-teal-300",
+    India: "bg-indigo-100 text-indigo-700 border-indigo-300",
+    Bangladesh: "bg-green-100 text-green-700 border-green-300",
+    Religion: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300",
+    Business: "bg-yellow-100 text-yellow-700 border-yellow-300",
+    Science: "bg-blue-100 text-blue-700 border-blue-300",
+    Education: "bg-lime-100 text-lime-700 border-lime-300",
+    Opinion: "bg-gray-200 text-gray-800 border-gray-400",
+    Other: "bg-gray-100 text-gray-700 border-gray-300",
+  };
+
+  // Fact check color map for badges
+  const factCheckColorMap: Record<string, string> = {
+    verified: "bg-green-100 text-green-700 border-green-300",
+    unverified: "bg-gray-100 text-gray-700 border-gray-300",
+    True: "bg-green-100 text-green-700 border-green-300",
+    False: "bg-red-100 text-red-700 border-red-300",
+    Mixed: "bg-yellow-100 text-yellow-700 border-yellow-300",
+  };
+
+  // Sentiment Pie Chart Data
   const sentimentLabels = Object.keys(data?.toneSentiment || {});
   const sentimentValues = Object.values(data?.toneSentiment || {});
   const sentimentChartData = {
@@ -218,66 +305,9 @@ export default function Dashboard() {
       {
         label: "Sentiment",
         data: sentimentValues,
-        backgroundColor: sentimentLabels.map(
-          (label) => sentimentColorMap[label] || "#a78bfa" // fallback color
-        ),
+        backgroundColor: sentimentLabels.map(label => sentimentChartColorMap[label] || "#a3a3a3"),
       },
     ],
-  };
-
-  // Category color map
-  const categoryColorMap: Record<string, string> = {
-    Health: "bg-green-100 text-green-700",
-    Politics: "bg-blue-100 text-blue-700",
-    Economy: "bg-yellow-100 text-yellow-700",
-    Education: "bg-purple-100 text-purple-700",
-    Security: "bg-red-100 text-red-700",
-    Sports: "bg-indigo-100 text-indigo-700",
-    Technology: "bg-pink-100 text-pink-700",
-    Environment: "bg-emerald-100 text-emerald-700",
-    International: "bg-cyan-100 text-cyan-700",
-    Culture: "bg-orange-100 text-orange-700",
-    Science: "bg-lime-100 text-lime-700",
-    Business: "bg-teal-100 text-teal-700",
-    Crime: "bg-gray-200 text-gray-700",
-    General: "bg-gray-100 text-gray-700",
-  };
-
-  const factCheckColor: Record<string, string> = {
-    True: "bg-green-100 text-green-700",
-    False: "bg-red-100 text-red-700",
-    Mixed: "bg-yellow-100 text-yellow-700",
-    Unverified: "bg-gray-100 text-gray-700",
-  };
-
-  // Responsive grid classes
-  const gridClass = "grid grid-cols-1 md:grid-cols-3 gap-6 mb-8";
-
-  // --- New: Stats and Word Cloud helpers ---
-  const getSentimentStats = (toneSentiment: any) => {
-    return [
-      { label: "Positive", value: toneSentiment.Positive || 0, color: "bg-green-100 text-green-700", icon: <FaCheckCircle className="text-green-500" /> },
-      { label: "Negative", value: toneSentiment.Negative || 0, color: "bg-red-100 text-red-700", icon: <FaExclamationCircle className="text-red-500" /> },
-      { label: "Neutral", value: toneSentiment.Neutral || 0, color: "bg-gray-100 text-gray-700", icon: <FaRegNewspaper className="text-gray-500" /> },
-      { label: "Cautious", value: toneSentiment.Cautious || 0, color: "bg-yellow-100 text-yellow-700", icon: <FaRegNewspaper className="text-yellow-500" /> },
-    ];
-  };
-  const getVerificationStats = (factChecking: any) => {
-    return [
-      { label: "Verified", value: factChecking.verificationStatus === "Verified" ? factChecking.bangladeshiAgreement : 0, color: "bg-green-100 text-green-700" },
-      { label: "Unverified", value: factChecking.verificationStatus === "Unverified" ? factChecking.bangladeshiAgreement : 0, color: "bg-gray-100 text-gray-700" },
-    ];
-  };
-  const getTopKeywords = (news: any[]) => {
-    const stopwords = ["the", "of", "in", "and", "to", "a", "on", "for", "as", "is", "at", "by", "an", "with", "from", "be", "it", "that", "this", "will", "are", "has", "after", "was", "not", "but", "or", "its", "his", "her", "their", "he", "she", "they", "we", "you", "i", "have", "had", "were", "which", "who", "what", "when", "where", "how", "why", "all", "more", "new", "about", "into", "out", "up", "over", "than", "so", "if", "no", "do", "does", "did", "can", "just", "now", "may", "also", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
-    const freq: Record<string, number> = {};
-    news.forEach(item => {
-      (item.headline || "").split(/\W+/).forEach((word: string) => {
-        const w = word.toLowerCase();
-        if (w.length > 2 && !stopwords.includes(w)) freq[w] = (freq[w] || 0) + 1;
-      });
-    });
-    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 30);
   };
 
   // --- FactCheck Pie Chart Data ---
@@ -339,6 +369,16 @@ export default function Dashboard() {
     return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 35);
   };
   const nerKeywords = useMemo(() => getNEREntities(data?.latestIndianNews || []), [data]);
+
+  // Add back getSentimentStats with correct color mapping
+  const getSentimentStats = (toneSentiment: any) => {
+    return [
+      { label: "Positive", value: toneSentiment.Positive || 0, color: "bg-green-100 text-green-700", icon: <FaCheckCircle className="text-green-500" /> },
+      { label: "Negative", value: toneSentiment.Negative || 0, color: "bg-red-100 text-red-700", icon: <FaExclamationCircle className="text-red-500" /> },
+      { label: "Neutral", value: toneSentiment.Neutral || 0, color: "bg-blue-100 text-blue-700", icon: <FaRegNewspaper className="text-gray-500" /> },
+      { label: "Cautious", value: toneSentiment.Cautious || 0, color: "bg-yellow-100 text-yellow-700", icon: <FaRegNewspaper className="text-yellow-500" /> },
+    ];
+  };
 
   if (loading) {
     return (
@@ -476,7 +516,7 @@ export default function Dashboard() {
       </div>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {getSentimentStats(data.toneSentiment).map(stat => (
+        {getSentimentStats(data.toneSentiment).map((stat: any) => (
           <div key={stat.label} className={`flex flex-col items-center bg-white rounded-lg shadow p-4 ${stat.color}`}>
             <div className="text-2xl mb-2">{stat.icon}</div>
             <div className="text-lg font-bold">{stat.value}</div>
@@ -549,35 +589,21 @@ export default function Dashboard() {
                         {item.headline.length > 60 ? item.headline.slice(0, 60) + "..." : item.headline}
                       </a>
                     </td>
-                    <td className="py-3 px-4">{item.source}</td>
+                    <td className="py-3 px-4">{item.source_domain || item.source}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryColorMap[(item.category && typeof item.category === 'string' ? (item.category.charAt(0).toUpperCase() + item.category.slice(1)) : 'General')] || categoryColorMap['General']}`}>{item.category ? (item.category.charAt(0).toUpperCase() + item.category.slice(1)) : 'General'}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold shadow-sm
-                        ${item.sentiment === 'Positive' ? 'bg-green-100 text-green-700 border border-green-300' : ''}
-                        ${item.sentiment === 'Negative' ? 'bg-red-100 text-red-700 border border-red-300' : ''}
-                        ${item.sentiment === 'Neutral' ? 'bg-blue-100 text-blue-700 border border-blue-300' : ''}
-                        ${item.sentiment === 'Cautious' ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' : ''}
-                        ${!item.sentiment ? 'bg-gray-100 text-gray-700 border border-gray-300' : ''}
-                      `}>
-                        {item.sentiment || 'Neutral'}
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryColorMap[item.category || item.news_category || 'Other'] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                        {item.category || item.news_category || 'Other'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 relative">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-semibold ${item.fact_check ? factCheckColor[item.fact_check] || 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'}`}
-                        onMouseEnter={e => setFactCheckTooltip({ show: true, text: `Fact-check status: ${item.fact_check || 'Unverified'}`, x: e.clientX, y: e.clientY })}
-                        onMouseLeave={() => setFactCheckTooltip({ ...factCheckTooltip, show: false })}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {item.fact_check || 'Unverified'}
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${sentimentColorMap[item.sentiment_toward_bangladesh || 'Neutral']}`}>
+                        {item.sentiment_toward_bangladesh || 'Neutral'}
                       </span>
-                      {factCheckTooltip.show && (
-                        <div style={{ position: 'fixed', left: factCheckTooltip.x + 10, top: factCheckTooltip.y + 10, zIndex: 1000 }} className="bg-black text-white text-xs rounded px-2 py-1 shadow-lg">
-                          {factCheckTooltip.text}
-                        </div>
-                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${factCheckColorMap[item.fact_check?.status || 'unverified']}`}>
+                        {item.fact_check?.status || 'unverified'}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <a href={`/news/${item.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-primary-600 text-white font-semibold shadow hover:bg-primary-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary-400" title="View details">
@@ -639,60 +665,102 @@ export default function Dashboard() {
           />
         </div>
       </div>
-      {/* --- New: Interactive Timeline of Events --- */}
+      {/* Timeline of Key Events */}
       {data.latestIndianNews && data.latestIndianNews.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaRegNewspaper /> Timeline of Key Events</h3>
           <div className="overflow-x-auto">
             <ul className="timeline timeline-vertical">
-              {data.latestIndianNews.slice(0, 10).map((item: any) => (
+              {data.latestIndianNews.slice(0, 10).map((item: NewsItem) => (
                 <li key={item.id} className="mb-4">
                   <span className="font-bold">{item.date ? format(new Date(item.date), "MMM d, yyyy") : "-"}</span>: 
                   <a href={item.url || `/news/${item.id}`} className="text-primary-600 underline ml-2" target="_blank" rel="noopener noreferrer">
                     {item.headline.length > 80 ? item.headline.slice(0, 80) + "..." : item.headline}
                   </a>
+                  <div className="flex gap-2 mt-1">
+                    <span className={`px-2 py-0.5 rounded text-xs ${categoryColorMap[item.category || item.news_category || 'Other'] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>{item.category || item.news_category || 'Other'}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${sentimentColorMap[item.sentiment_toward_bangladesh || 'Neutral']}`}>{item.sentiment_toward_bangladesh || 'Neutral'}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${factCheckColorMap[item.fact_check?.status || 'unverified']}`}>{item.fact_check?.status || 'unverified'}</span>
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
         </div>
       )}
-      {/* --- New: Sentiment Over Time Line Chart --- */}
+      {/* Fact Check Summary */}
       {data.latestIndianNews && data.latestIndianNews.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6 mb-8 flex flex-col items-center">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaChartLine /> Sentiment Over Time</h3>
-          <div className="w-full max-w-4xl h-80 flex items-center justify-center">
-            <Line data={{
-              labels: data.latestIndianNews.map((item: any) => item.date ? format(new Date(item.date), "MMM d") : "-"),
-              datasets: [
-                {
-                  label: "Sentiment",
-                  data: data.latestIndianNews.map((item: any) => item.sentiment === 'Positive' ? 1 : item.sentiment === 'Negative' ? -1 : 0),
-                  borderColor: "#3b82f6",
-                  backgroundColor: "rgba(59,130,246,0.1)",
-                  fill: true,
-                  tension: 0.4,
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                },
-              ],
-            }} options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              scales: { y: { min: -1, max: 1, ticks: { callback: (v: string | number) => v === 1 ? 'Positive' : v === -1 ? 'Negative' : 'Neutral' } } },
-            }} />
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCheckCircle /> Fact Check Summary</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium mb-2">Verification Status</h4>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(data.latestIndianNews.reduce((acc: Record<string, number>, item: NewsItem) => {
+                  const status = item.fact_check?.status || 'unverified';
+                  acc[status] = (acc[status] || 0) + 1;
+                  return acc;
+                }, {})).map(([status, count]) => (
+                  <div key={status} className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${factCheckColorMap[status]}`}>{status}</span>
+                    <span className="text-sm text-gray-600">({count})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Top Sources</h4>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(data.latestIndianNews.reduce((acc: Record<string, number>, item: NewsItem) => {
+                  const source = item.source_domain || item.source;
+                  acc[source] = (acc[source] || 0) + 1;
+                  return acc;
+                }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([source, count]) => (
+                  <div key={source} className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{source}</span>
+                    <span className="text-sm text-gray-600">({count})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
-      {/* --- New: Trending Topics/Entities --- */}
-      {data.latestIndianNews && data.latestIndianNews.some((item: any) => item.topics || item.entities) && (
+      {/* Media Coverage Analysis */}
+      {data.latestIndianNews && data.latestIndianNews.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaCloud /> Trending Topics & Entities</h3>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(new Set(data.latestIndianNews.flatMap((item: any) => [...(item.topics || []), ...(item.entities || [])]))).slice(0, 30).map((topic: any) => (
-              <span key={topic} className="inline-block bg-emerald-100 text-emerald-700 rounded px-2 py-1 text-xs font-semibold">{topic}</span>
-            ))}
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FaGlobe /> Media Coverage Analysis</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium mb-2">Bangladeshi Media Coverage</h4>
+              <div className="space-y-2">
+                {data.latestIndianNews.filter((item: NewsItem) => item.media_coverage_summary?.bangladeshi_media && item.media_coverage_summary.bangladeshi_media !== "Not covered").slice(0, 3).length > 0 ? (
+                  data.latestIndianNews.filter((item: NewsItem) => item.media_coverage_summary?.bangladeshi_media && item.media_coverage_summary.bangladeshi_media !== "Not covered").slice(0, 3).map((item: NewsItem, index: number) => (
+                    <div key={index} className="text-sm text-gray-700">
+                      <div className="font-medium">{item.headline}</div>
+                      <div className="text-gray-600">{item.media_coverage_summary.bangladeshi_media}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-400 text-sm italic">No data available</div>
+                )}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">International Media Coverage</h4>
+              <div className="space-y-2">
+                {data.latestIndianNews.filter((item: NewsItem) => item.media_coverage_summary?.international_media && item.media_coverage_summary.international_media !== "Not covered").slice(0, 3).length > 0 ? (
+                  data.latestIndianNews.filter((item: NewsItem) => item.media_coverage_summary?.international_media && item.media_coverage_summary.international_media !== "Not covered").slice(0, 3).map((item: NewsItem, index: number) => (
+                    <div key={index} className="text-sm text-gray-700">
+                      <div className="font-medium">{item.headline}</div>
+                      <div className="text-gray-600">{item.media_coverage_summary.international_media}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-400 text-sm italic">No data available</div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -769,55 +837,87 @@ export default function Dashboard() {
         </div>
       )}
       {/* --- Implications & Analysis --- */}
-      {data.implications && data.implications.length > 0 && (
+      {data?.implications && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">Implications & Analysis</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {data.implications.map((item: any, idx: number) => (
-              <div key={idx} className="p-4 rounded border border-gray-200 bg-gray-50">
-                <div className="font-bold">{item.type}</div>
-                <div>Impact: <span className="font-semibold">{item.impact}</span></div>
-              </div>
-            ))}
+            {['Political Stability', 'Economic Impact', 'Social Cohesion'].map(type => {
+              const implications = data.implications[type] || [];
+              let impact = null;
+              if (Array.isArray(implications) && implications.length > 0) {
+                const first = implications[0];
+                impact = typeof first === 'object' && first !== null && 'impact' in first ? (first as { impact?: string }).impact : typeof first === 'string' ? first : null;
+              }
+              return (
+                <div key={type} className="p-4 rounded border border-gray-200 bg-gray-50">
+                  <div className="font-bold mb-2">{type}</div>
+                  {impact ? (
+                    <div className="text-gray-700 text-sm">Impact: <span className="font-semibold">{impact}</span></div>
+                  ) : (
+                    <div className="text-gray-400 text-sm italic">No data available</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
       {/* --- Prediction (Outlook) --- */}
-      {data.predictions && data.predictions.length > 0 && (
+      {data?.predictions && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">Prediction (Outlook)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.predictions.map((item: any, idx: number) => (
-              <div key={idx} className="p-4 rounded border border-yellow-200 bg-yellow-50">
-                <div className="font-bold">{item.category}</div>
-                <div>Likelihood: <span className="font-semibold">{item.likelihood}%</span></div>
-                <div>Time Frame: {item.timeFrame}</div>
-                <div className="mt-2 text-gray-700 text-sm">{item.details}</div>
-              </div>
-            ))}
+            {['Political Landscape', 'Economic Implications'].map(type => {
+              const predictions = data.predictions[type] || [];
+              const pred = Array.isArray(predictions) && predictions.length > 0 ? predictions[0] : null;
+              const hasData = pred && typeof pred === 'object' && ((pred as { likelihood?: string, timeFrame?: string, details?: string }).likelihood || (pred as { likelihood?: string, timeFrame?: string, details?: string }).timeFrame || (pred as { likelihood?: string, timeFrame?: string, details?: string }).details);
+              return (
+                <div key={type} className={`p-4 rounded border ${hasData ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200 bg-gray-50'}`}> 
+                  <div className="font-bold mb-2">{type}</div>
+                  {hasData ? (
+                    <>
+                      {'likelihood' in (pred as object) && (pred as any).likelihood && <div>Likelihood: <span className="font-semibold">{(pred as any).likelihood}%</span></div>}
+                      {'timeFrame' in (pred as object) && (pred as any).timeFrame && <div>Time Frame: {(pred as any).timeFrame}</div>}
+                      {'details' in (pred as object) && (pred as any).details && <div className="mt-2 text-gray-700 text-sm">{(pred as any).details}</div>}
+                    </>
+                  ) : pred && typeof pred === 'string' ? (
+                    <div className="text-gray-700 text-sm">{pred}</div>
+                  ) : (
+                    <div className="text-gray-400 text-sm italic">No data available</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
       {/* --- Fact-Checking: Cross-Media Comparison --- */}
-      {data.factChecking && (
+      {data?.factChecking && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">Fact-Checking: Cross-Media Comparison</h3>
-          <div className="mb-2 text-gray-600 text-sm">Last Updated: {data.factChecking.lastUpdated ? new Date(data.factChecking.lastUpdated).toLocaleString() : 'N/A'}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Object.entries(data.factChecking.verdictCounts || {}).map(([verdict, count]: [string, any]) => (
-              <div key={verdict} className="p-4 border rounded bg-gray-50">
-                <div className="font-bold mb-1">{verdict} <span className="text-gray-500 font-normal">({count as number})</span></div>
-                {(data.factChecking.verdictSamples?.[verdict] || []).length > 0 ? (
-                  <ul className="list-disc ml-5 text-xs text-gray-700">
-                    {data.factChecking.verdictSamples[verdict].map((sample: any, idx: number) => (
-                      <li key={idx}><span className="font-semibold">{sample.headline}</span> <span className="text-gray-500">({sample.source}, {sample.date ? new Date(sample.date).toLocaleDateString() : 'N/A'})</span></li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-xs text-gray-400">No samples</div>
-                )}
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {['False', 'Mixed', 'True', 'Unverified'].map(verdict => {
+              const info = data.factChecking[verdict] || {};
+              const samples = Array.isArray(info.samples) ? info.samples : [];
+              let color = 'border-gray-200 bg-gray-50';
+              if (verdict === 'True') color = 'border-green-200 bg-green-50';
+              if (verdict === 'False') color = 'border-red-200 bg-red-50';
+              if (verdict === 'Mixed') color = 'border-yellow-200 bg-yellow-50';
+              return (
+                <div key={verdict} className={`p-4 rounded border ${color}`}>
+                  <div className="font-bold mb-1">{verdict} <span className="text-gray-500 font-normal">({samples.length})</span></div>
+                  {samples.length > 0 ? (
+                    <ul className="list-disc ml-5 text-xs text-gray-700">
+                      {samples.map((sample: any, idx: number) => (
+                        <li key={idx}><span className="font-semibold">{sample.headline}</span> <span className="text-gray-500">({sample.source}, {sample.date ? new Date(sample.date).toLocaleDateString() : 'N/A'})</span></li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-xs text-gray-400">No samples available</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

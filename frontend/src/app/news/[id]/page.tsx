@@ -20,26 +20,20 @@ const sentimentColor = {
   Cautious: "bg-yellow-100 text-yellow-700 border-yellow-300",
 };
 const factCheckColor = {
-  True: "bg-green-100 text-green-700 border-green-300",
-  False: "bg-red-100 text-red-700 border-red-300",
-  Mixed: "bg-yellow-100 text-yellow-700 border-yellow-300",
-  Unverified: "bg-gray-100 text-gray-700 border-gray-300",
+  verified: "bg-green-100 text-green-700 border-green-300",
+  unverified: "bg-gray-100 text-gray-700 border-gray-300",
 };
 const categoryColor = {
-  Health: "bg-green-100 text-green-700 border-green-300",
   Politics: "bg-blue-100 text-blue-700 border-blue-300",
   Economy: "bg-yellow-100 text-yellow-700 border-yellow-300",
-  Education: "bg-purple-100 text-purple-700 border-purple-300",
-  Security: "bg-red-100 text-red-700 border-red-300",
-  Sports: "bg-indigo-100 text-indigo-700 border-indigo-300",
-  Technology: "bg-pink-100 text-pink-700 border-pink-300",
+  Crime: "bg-red-100 text-red-700 border-red-300",
   Environment: "bg-emerald-100 text-emerald-700 border-emerald-300",
-  International: "bg-cyan-100 text-cyan-700 border-cyan-300",
-  Culture: "bg-orange-100 text-orange-700 border-orange-300",
-  Science: "bg-lime-100 text-lime-700 border-lime-300",
-  Business: "bg-teal-100 text-teal-700 border-teal-300",
-  Crime: "bg-gray-200 text-gray-700 border-gray-300",
-  General: "bg-gray-100 text-gray-700 border-gray-300",
+  Health: "bg-green-100 text-green-700 border-green-300",
+  Technology: "bg-pink-100 text-pink-700 border-pink-300",
+  Diplomacy: "bg-indigo-100 text-indigo-700 border-indigo-300",
+  Sports: "bg-orange-100 text-orange-700 border-orange-300",
+  Culture: "bg-purple-100 text-purple-700 border-purple-300",
+  Other: "bg-gray-100 text-gray-700 border-gray-300",
 };
 
 const sentimentIcon = {
@@ -49,10 +43,8 @@ const sentimentIcon = {
   Cautious: <FaQuestionCircle className="inline mr-1" />,
 };
 const factCheckIcon = {
-  True: <FaCheckCircle className="inline mr-1" />,
-  False: <FaExclamationCircle className="inline mr-1" />,
-  Mixed: <FaQuestionCircle className="inline mr-1" />,
-  Unverified: <FaRegNewspaper className="inline mr-1" />,
+  verified: <FaCheckCircle className="inline mr-1" />,
+  unverified: <FaRegNewspaper className="inline mr-1" />,
 };
 
 export default function NewsDetail() {
@@ -62,6 +54,7 @@ export default function NewsDetail() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showFullNews, setShowFullNews] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -78,9 +71,19 @@ export default function NewsDetail() {
   const summary = data.summary || {};
   const extras = data.extras || {};
   const links = extras.links || [];
-  const cat = (summary.category || "General") as keyof typeof categoryColor;
-  const sent = (data.sentiment || "Neutral") as keyof typeof sentimentColor;
-  const fact = (data.fact_check || "Unverified") as keyof typeof factCheckColor;
+  const cat = (summary.news_category || "Other") as keyof typeof categoryColor;
+  const sent = (summary.sentiment_toward_bangladesh || "Neutral") as keyof typeof sentimentColor;
+  const fact = (summary.fact_check?.status || "unverified") as keyof typeof factCheckColor;
+
+  // Parse summary JSON if needed
+  let parsedSummary: any = summary;
+  try {
+    if (typeof summary === 'string') {
+      parsedSummary = JSON.parse(summary);
+    }
+  } catch (e) {
+    parsedSummary = summary;
+  }
 
   const matchesSection = (title: string, matches: any[]) => (
     <div className="mb-4">
@@ -100,9 +103,21 @@ export default function NewsDetail() {
     </div>
   );
 
+  // Fallback summary logic
+  const getFallbackSummary = () => {
+    if (parsedSummary.extractSummary && parsedSummary.extractSummary.length < 600) return parsedSummary.extractSummary;
+    if (parsedSummary.summary && parsedSummary.summary.length < 600) return parsedSummary.summary;
+    if (data.text) {
+      const sentences = data.text.match(/[^.!?]+[.!?]+/g) || [];
+      const fallback = sentences.slice(0, 2).join(' ').trim();
+      if (fallback.length > 0 && fallback.length < 600) return fallback;
+    }
+    return "No summary available.";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 md:px-10 py-14">
+      <div className="max-w-6xl mx-auto px-4 md:px-10 py-14">
         {/* Header Buttons */}
         <div className="flex justify-between items-center mb-10 gap-8 flex-wrap">
           <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white text-lg font-semibold hover:bg-primary-700 shadow transition" onClick={() => router.push("/")}> <FaChevronLeft /> Back to Dashboard</button>
@@ -127,10 +142,10 @@ export default function NewsDetail() {
             <div className="relative z-10 p-10 w-full">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 {data.favicon && <img src={data.favicon} alt="favicon" className="w-8 h-8 rounded inline-block bg-white p-1" />}
-                <span className="text-white font-semibold text-xl flex items-center gap-1"><FaGlobe /> {data.source}</span>
-                <span className={`px-3 py-1 rounded border text-sm font-semibold ${categoryColor[cat]}`}>{summary.category || "General"}</span>
-                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${sentimentColor[sent]}`}>{sentimentIcon[sent]}{data.sentiment}</span>
-                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${factCheckColor[fact]}`}>{factCheckIcon[fact]}{data.fact_check}</span>
+                <span className="text-white font-semibold text-xl flex items-center gap-1"><FaGlobe /> {summary.source_domain || data.source}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold ${categoryColor[cat]}`}>{summary.news_category || "Other"}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${sentimentColor[sent]}`}>{sentimentIcon[sent]}{summary.sentiment_toward_bangladesh}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${factCheckColor[fact]}`}>{factCheckIcon[fact]}{summary.fact_check?.status || "unverified"}</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow mb-3 leading-tight">{data.title}</h1>
               <div className="flex flex-wrap gap-8 items-center text-gray-200 text-lg">
@@ -160,39 +175,94 @@ export default function NewsDetail() {
             </div>
           </div>
         </div>
-        {/* Executive Summary */}
-        <div className="mb-14 max-w-4xl mx-auto">
+        {/* Summary Box */}
+        <div className="mb-8 max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <FaRegNewspaper className="text-blue-500 text-3xl" />
+            <span className="font-bold text-2xl text-gray-800">Summary</span>
+          </div>
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-8 rounded-2xl shadow whitespace-pre-line text-gray-800 text-lg min-h-[80px]">
+            {getFallbackSummary()}
+          </div>
+        </div>
+        {/* Detailed News (collapsible) */}
+        <div className="mb-8 max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <FaRegNewspaper className="text-yellow-500 text-3xl" />
             <span className="font-bold text-2xl text-gray-800">Detailed News</span>
           </div>
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-8 rounded-2xl shadow whitespace-pre-line text-gray-800 text-lg min-h-[120px]">
-            {data.text}
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-8 rounded-2xl shadow text-gray-800 text-lg min-h-[80px]">
+            {showFullNews ? (
+              <>
+                {data.text}
+                <button className="mt-4 px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition" onClick={() => setShowFullNews(false)}>
+                  Show less
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="line-clamp-4 overflow-hidden" style={{ maxHeight: '7.5em' }}>{data.text}</div>
+                <button className="mt-4 px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition" onClick={() => setShowFullNews(true)}>
+                  Read full news
+                </button>
+              </>
+            )}
           </div>
         </div>
         {/* Two-column layout for summaries and metadata */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14 max-w-6xl mx-auto">
           <div className="bg-white rounded-2xl shadow p-8 min-h-[220px] flex flex-col">
-            <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaGlobe className="text-primary-600" />Bangladeshi Media Summary</div>
-            <div className="mb-3 text-gray-700 text-base flex-1">{data.bangladeshi_summary || summary.comparison?.bangladeshi_media || "Not covered"}</div>
-            {matchesSection("Bangladeshi Matches", data.bangladeshi_matches || summary.bangladeshi_matches || [])}
+            <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaGlobe className="text-primary-600" />Bangladeshi Media Coverage</div>
+            <div className="mb-3 text-gray-700 text-base flex-1">{parsedSummary.mediaCoverageSummary?.bangladeshiMediaCoverage || "Not covered"}</div>
+            {matchesSection("Bangladeshi Matches", parsedSummary.supportingArticleMatches?.bangladeshiMatches || [])}
           </div>
           <div className="bg-white rounded-2xl shadow p-8 min-h-[220px] flex flex-col">
-            <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaGlobe className="text-primary-600" />International Media Summary</div>
-            <div className="mb-3 text-gray-700 text-base flex-1">{data.international_summary || summary.comparison?.international_media || "Not covered"}</div>
-            {matchesSection("International Matches", data.international_matches || summary.international_matches || [])}
+            <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaGlobe className="text-primary-600" />International Media Coverage</div>
+            <div className="mb-3 text-gray-700 text-base flex-1">{parsedSummary.mediaCoverageSummary?.internationalMediaCoverage || "Not covered"}</div>
+            {matchesSection("International Matches", parsedSummary.supportingArticleMatches?.internationalMatches || [])}
+          </div>
+        </div>
+        {/* Fact Check Details */}
+        <div className="bg-white rounded-2xl shadow p-8 mb-14 max-w-6xl mx-auto">
+          <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaCheckCircle className="text-primary-600" />Fact Check Details</div>
+          <div className="mb-4">
+            <div className="font-medium mb-2">Status: <span className={`px-2 py-1 rounded text-sm font-semibold ${factCheckColor[fact]}`}>{parsedSummary.factCheck?.status || "unverified"}</span></div>
+            {parsedSummary.factCheck?.sources && parsedSummary.factCheck.sources.length > 0 && (
+              <div className="mb-4">
+                <div className="font-medium mb-2">Verification Sources:</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {parsedSummary.factCheck.sources.map((source: string, i: number) => (
+                    <li key={i}>
+                      <a href={source} className="text-primary-600 underline hover:text-primary-800 transition" target="_blank" rel="noopener noreferrer">{source}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {parsedSummary.factCheck?.similarFactChecks && parsedSummary.factCheck.similarFactChecks.length > 0 && (
+              <div>
+                <div className="font-medium mb-2">Similar Fact Checks:</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {parsedSummary.factCheck.similarFactChecks.map((check: any, i: number) => (
+                    <li key={i}>
+                      <a href={check.url} className="text-primary-600 underline hover:text-primary-800 transition" target="_blank" rel="noopener noreferrer">{check.title}</a>
+                      <span className="ml-2 text-xs text-gray-500">({check.source})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
         {/* Score and Extras */}
-        <div className="flex flex-col md:flex-row md:items-center gap-10 mb-14 max-w-4xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center gap-10 mb-14 max-w-6xl mx-auto">
           <div className="bg-white rounded-2xl shadow p-8 flex-1 flex flex-col items-center min-h-[120px]">
             <div className="font-semibold text-gray-700 mb-2 flex items-center gap-2 text-lg"><FaCheckCircle className="text-green-500" />Score</div>
             <div className="text-3xl font-mono text-primary-700">{typeof data.score === "number" ? data.score.toFixed(3) : "-"}</div>
           </div>
-          {/* Add more metadata or extras here if needed */}
         </div>
         {/* Related Articles Carousel */}
-        <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
+        <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-6xl mx-auto">
           <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaArrowRight className="text-primary-600" />Related Articles</h2>
           <div className="flex overflow-x-auto gap-6 pb-2">
             {(data.related_articles || []).length === 0 ? (
@@ -203,7 +273,7 @@ export default function NewsDetail() {
                   <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
                   <div className="text-xs text-gray-500">{art.source}</div>
                   <div className="flex gap-1 text-xs">
-                    <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "General"]}`}>{art.category}</span>
+                    <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "Other"]}`}>{art.category}</span>
                     <span className={`px-2 py-0.5 rounded ${sentimentColor[(art.sentiment as keyof typeof sentimentColor) || "Neutral"]}`}>{art.sentiment}</span>
                   </div>
                 </a>
@@ -211,46 +281,43 @@ export default function NewsDetail() {
             )}
           </div>
         </div>
-        {/* Sentiment Breakdown Donut Chart */}
-        {data.summary && data.summary.sentiment && (
-          <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaRegNewspaper className="text-primary-600" />Sentiment Breakdown</h2>
-            <div className="flex justify-center">
-              <div style={{ width: 340, height: 340 }}>
-                <Pie
-                  data={{
-                    labels: [data.summary.sentiment],
-                    datasets: [
-                      {
-                        data: [1],
-                        backgroundColor: [sentimentColor[(data.summary.sentiment as keyof typeof sentimentColor) || "Neutral"] || "#e5e7eb"],
-                      },
-                    ],
-                  }}
-                  options={{ plugins: { legend: { display: true, position: "bottom" } } }}
-                />
+        {/* Sentiment Breakdown */}
+        <div className="bg-white rounded-2xl shadow p-8 mb-14 max-w-6xl mx-auto">
+          <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaCheckCircle className="text-primary-600" />Sentiment Breakdown</div>
+          <div className="flex flex-col md:flex-row gap-10">
+            <div className="flex-1">
+              <div className="font-medium mb-2">Positive</div>
+              <div className="h-2 bg-green-100 rounded-full overflow-hidden">
+                <div className="h-2 bg-green-700 rounded-full" style={{ width: `${(data.sentiment_analysis?.positive || 0) * 100}%` }}></div>
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="font-medium mb-2">Negative</div>
+              <div className="h-2 bg-red-100 rounded-full overflow-hidden">
+                <div className="h-2 bg-red-700 rounded-full" style={{ width: `${(data.sentiment_analysis?.negative || 0) * 100}%` }}></div>
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="font-medium mb-2">Neutral</div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-700 rounded-full" style={{ width: `${(data.sentiment_analysis?.neutral || 0) * 100}%` }}></div>
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="font-medium mb-2">Cautious</div>
+              <div className="h-2 bg-yellow-100 rounded-full overflow-hidden">
+                <div className="h-2 bg-yellow-700 rounded-full" style={{ width: `${(data.sentiment_analysis?.cautious || 0) * 100}%` }}></div>
               </div>
             </div>
           </div>
-        )}
-        {/* More from this Source */}
-        {data.source && (
-          <div className="card mb-14 animate-fadein bg-white rounded-2xl shadow p-8 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-5 flex items-center gap-2 text-primary-700"><FaNewspaper className="text-primary-600" />More from {data.source}</h2>
-            <div className="flex flex-wrap gap-6">
-              {(data.moreFromSource || []).length === 0 ? (
-                <div className="text-gray-500">No more articles from this source.</div>
-              ) : (
-                (data.moreFromSource || []).map((art: any) => (
-                  <a key={art.id} href={`/news/${art.id}`} className="w-72 bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
-                    <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
-                    <div className="text-xs text-gray-500">{art.publishedDate ? format(new Date(art.publishedDate), "MMM d, yyyy") : "-"}</div>
-                  </a>
-                ))
-              )}
-            </div>
+        </div>
+        {/* More from this source */}
+        <div className="bg-white rounded-2xl shadow p-8 mb-14 max-w-6xl mx-auto">
+          <div className="font-semibold mb-3 text-primary-700 flex items-center gap-2 text-lg"><FaLink className="text-primary-600" />More from this source</div>
+          <div className="text-gray-700 text-base">
+            {data.more_from_source || "No more articles found from this source."}
           </div>
-        )}
+        </div>
         <style jsx global>{`
           .animate-fadein { animation: fadein 0.7s; }
           @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }

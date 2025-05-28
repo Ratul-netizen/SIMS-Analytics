@@ -61,78 +61,169 @@ class IntMatch(db.Model):
     url        = db.Column(db.String)
 
 def run_exa_ingestion():
-    exa = Exa(api_key=EXA_API_KEY)
+    exa = Exa(api_key="4909c8ea-feb6-4f27-bf9e-acfd9b765229")
     print("Running advanced Exa ingestion for Bangladesh-related news coverage by Indian Media...")
     indian_and_bd_domains = [
-        "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com", "thedailystar.net", "bdnews24.com", "jugantor.com", "kalerkantho.com", "samakal.com", "bd-pratidin.com", "dhakatribune.com", "banglanews24.com", "jagonews24.com", "ittefaq.com.bd", "mzamin.com", "newagebd.net", "thefinancialexpress.com.bd", "somoynews.tv", "channel24bd.tv", "dailyjanakantha.com", "theindependentbd.com", "banglatribune.com", "dhakapost.com", "risingbd.com", "dailyinqilab.com", "dailynayadiganta.com", "amadershomoy.com", "bbc.com", "reuters.com", "aljazeera.com", "apnews.com", "cnn.com", "nytimes.com", "theguardian.com", "france24.com", "dw.com"
+        "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com", "bdnews24.com", "thedailystar.net", "prothomalo.com", "dhakatribune.com", "newagebd.net", "financialexpress.com.bd", "theindependentbd.com", "bbc.com", "reuters.com", "aljazeera.com", "apnews.com", "cnn.com", "nytimes.com", "theguardian.com", "france24.com", "dw.com", "factwatchbd.com", "altnews.in", "boomlive.in", "factchecker.in", "thequint.com", "factcheck.afp.com", "snopes.com", "politifact.com", "fullfact.org", "apnews.com", "factcheck.org"
     ]
     # Source categorization
     indian_sources = set([
         "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com"
     ])
     bd_sources = set([
-        "thedailystar.net", "bdnews24.com", "jugantor.com", "kalerkantho.com", "samakal.com", "bd-pratidin.com", "dhakatribune.com", "banglanews24.com", "jagonews24.com", "ittefaq.com.bd", "mzamin.com", "newagebd.net", "thefinancialexpress.com.bd", "somoynews.tv", "channel24bd.tv", "dailyjanakantha.com", "theindependentbd.com", "banglatribune.com", "dhakapost.com", "risingbd.com", "dailyinqilab.com", "dailynayadiganta.com", "amadershomoy.com"
+        "bdnews24.com", "thedailystar.net", "prothomalo.com", "dhakatribune.com", "newagebd.net", "financialexpress.com.bd", "theindependentbd.com"
     ])
     intl_sources = set([
         "bbc.com", "reuters.com", "aljazeera.com", "apnews.com", "cnn.com", "nytimes.com", "theguardian.com", "france24.com", "dw.com"
     ])
     result = exa.search_and_contents(
-        "Bangladesh-related news coverage by Indian Media",
+        "Bangladesh-related News coverage by Indian news media",
         category="news",
-        type="auto",
-        livecrawl="always",
         text=True,
         num_results=100,
+        livecrawl="always",
         include_domains=list(indian_and_bd_domains),
-        extras={"links": 1},
         summary={
-            'query': 'For the Indian news article at {url}: Extract "source" (publisher domain), Determine "sentiment" (Positive/Negative/Neutral/Cautious), Fact-check its main claim by comparing against:    • Bangladeshi outlets (thedailystar.net, bdnews24.com, jugantor.com, kalerkantho.com, samakal.com, bd-pratidin.com, dhakatribune.com, banglanews24.com, jagonews24.com, ittefaq.com.bd, mzamin.com, newagebd.net, thefinancialexpress.com.bd, somoynews.tv, channel24bd.tv, dailyjanakantha.com, theindependentbd.com, banglatribune.com, dhakapost.com, risingbd.com, dailyinqilab.com, dailynayadiganta.com, amadershomoy.com)    • International outlets (bbc.com, reuters.com, aljazeera.com, apnews.com, cnn.com, nytimes.com, theguardian.com, france24.com, dw.com)    Produce a verdict ("fact_check"): True, False, Mixed, or Unverified. 4. Infer a category for the article (e.g., Politics, Economy, Health, etc.). 5. In "comparison", summarize how Bangladeshi and international outlets covered it, or write "Not covered" if none did. 6. Under "bangladeshi_matches" and "international_matches", list up to 3 matching articles as objects with title, source, and url; if none found, return an empty array.',
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'source': {'type': 'string'},
-                    'sentiment': {'type': 'string', 'enum': ['Positive', 'Negative', 'Neutral', 'Cautious']},
-                    'fact_check': {'type': 'string', 'enum': ['True', 'False', 'Mixed', 'Unverified']},
-                    'category': {'type': 'string'},
-                    'comparison': {
-                        'type': 'object',
-                        'properties': {
-                            'bangladeshi_media': {'type': 'string'},
-                            'international_media': {'type': 'string'}
-                        },
-                        'required': ['bangladeshi_media', 'international_media']
+            "query": "You are a fact-checking and media-analysis assistant specialising in India–Bangladesh coverage.  For the Indian news article at {url} complete ALL of the following tasks and reply **only** with a single JSON object that exactly matches the schema provided below (do not wrap it in Markdown):  1️⃣  **extractSummary** → In ≤3 sentences, give a concise, neutral summary of the article's topic and its main claim(s).  2️⃣  **sourceDomain** → Return only the publisher's domain, e.g. \"thehindu.com\".  3️⃣  **newsCategory** → Classify into one of: Politics • Economy • Crime • Environment • Health • Technology • Diplomacy • Sports • Culture • Other  4️⃣  **sentimentTowardBangladesh** → Positive • Negative • Neutral (base it on overall tone toward Bangladesh).  5️⃣  **factCheck** → Compare the article's main claim(s) against the latest coverage in these outlets 🇧🇩 bdnews24.com, thedailystar.net, prothomalo.com, dhakatribune.com, newagebd.net, financialexpress.com.bd, theindependentbd.com 🌍 bbc.com, reuters.com, aljazeera.com, apnews.com, cnn.com, nytimes.com, theguardian.com, france24.com, dw.com ✅ Fact-checking sites: factwatchbd.com, altnews.in, boomlive.in, factchecker.in, thequint.com, factcheck.afp.com, snopes.com, politifact.com, fullfact.org, factcheck.org Return: • **status** \"verified\" | \"unverified\" • **sources** array of URLs used for verification • **similarFactChecks** array of objects { \"title\": …, \"source\": …, \"url\": … }  6️⃣  **mediaCoverageSummary** → For both Bangladeshi and international media, give ≤2-sentence summaries of how (or if) the claim was covered. Return \"Not covered\" if nothing found.  7️⃣  **supportingArticleMatches** → Two arrays: • **bangladeshiMatches** — articles from 🇧🇩 outlets • **internationalMatches** — articles from 🌍 outlets Each item: { \"title\": …, \"source\": …, \"url\": … }",
+            "schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "title": "IndianNewsArticleAnalysis",
+                "type": "object",
+                "required": ["extractSummary", "sourceDomain", "newsCategory", "sentimentTowardBangladesh", "factCheck", "mediaCoverageSummary", "supportingArticleMatches"],
+                "properties": {
+                    "extract_summary": {
+                        "type": "string",
+                        "description": "≤ 3-sentence neutral overview of the article's subject and principal claim(s)."
                     },
-                    'bangladeshi_matches': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'title': {'type': 'string'},
-                                'source': {'type': 'string'},
-                                'url': {'type': 'string'}
+                    "source_domain": {
+                        "type": "string",
+                        "description": "Root domain of the Indian news outlet that published the story (e.g., \"thehindu.com\")."
+                    },
+                    "news_category": {
+                        "type": "string",
+                        "enum": ["Politics", "Economy", "Crime", "Environment", "Health", "Technology", "Diplomacy", "Sports", "Culture", "Other"],
+                        "description": "Single topical label chosen from the fixed taxonomy."
+                    },
+                    "sentiment_toward_bangladesh": {
+                        "type": "string",
+                        "enum": ["Positive", "Negative", "Neutral"],
+                        "description": "Overall tone the article conveys toward Bangladesh."
+                    },
+                    "fact_check": {
+                        "type": "object",
+                        "required": ["status", "sources", "similarFactChecks"],
+                        "description": "Verification results for the article's main claim(s).",
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["verified", "unverified"],
+                                "description": "\"verified\" if supporting evidence exists in trusted outlets; otherwise \"unverified\"."
                             },
-                            'required': ['title', 'source', 'url']
+                            "sources": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "description": "URLs of articles or fact-checks used for verification."
+                            },
+                            "similar_fact_checks": {
+                                "type": "array",
+                                "description": "Related fact-checking articles.",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["title", "source", "url"],
+                                    "properties": {
+                                        "title": {
+                                            "type": "string",
+                                            "description": "Headline of the fact-check article."
+                                        },
+                                        "source": {
+                                            "type": "string",
+                                            "description": "Domain or outlet that published the fact-check."
+                                        },
+                                        "url": {
+                                            "type": "string",
+                                            "format": "uri",
+                                            "description": "Link to the fact-check."
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
-                    'international_matches': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'title': {'type': 'string'},
-                                'source': {'type': 'string'},
-                                'url': {'type': 'string'}
+                    "media_coverage_summary": {
+                        "type": "object",
+                        "required": ["bangladeshiMedia", "internationalMedia"],
+                        "description": "Short comparison of how Bangladeshi vs. international outlets covered the claim.",
+                        "properties": {
+                            "bangladeshi_media": {
+                                "type": "string",
+                                "description": "≤ 2-sentence synopsis of Bangladeshi coverage, or \"Not covered\"."
                             },
-                            'required': ['title', 'source', 'url']
+                            "international_media": {
+                                "type": "string",
+                                "description": "≤ 2-sentence synopsis of international coverage, or \"Not covered\"."
+                            }
+                        }
+                    },
+                    "supporting_article_matches": {
+                        "type": "object",
+                        "required": ["bangladeshiMatches", "internationalMatches"],
+                        "description": "Lists of related articles that discuss the same claim/event.",
+                        "properties": {
+                            "bangladeshi_matches": {
+                                "type": "array",
+                                "description": "Matching articles from Bangladeshi outlets.",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["title", "source", "url"],
+                                    "properties": {
+                                        "title": {
+                                            "type": "string",
+                                            "description": "Headline of the Bangladeshi article."
+                                        },
+                                        "source": {
+                                            "type": "string",
+                                            "description": "Publishing domain."
+                                        },
+                                        "url": {
+                                            "type": "string",
+                                            "format": "uri",
+                                            "description": "Link to the article."
+                                        }
+                                    }
+                                }
+                            },
+                            "international_matches": {
+                                "type": "array",
+                                "description": "Matching articles from international outlets.",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["title", "source", "url"],
+                                    "properties": {
+                                        "title": {
+                                            "type": "string",
+                                            "description": "Headline of the international article."
+                                        },
+                                        "source": {
+                                            "type": "string",
+                                            "description": "Publishing domain."
+                                        },
+                                        "url": {
+                                            "type": "string",
+                                            "format": "uri",
+                                            "description": "Link to the article."
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                },
-                'required': [
-                    'source', 'sentiment', 'fact_check', 'category',
-                    'comparison', 'bangladeshi_matches', 'international_matches'
-                ]
+                }
             }
-        }
+        },
+        extras={"links": 1}
     )
     print(f"Total results: {len(result.results)}")
     for idx, item in enumerate(result.results):
