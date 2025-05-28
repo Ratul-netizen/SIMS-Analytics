@@ -138,7 +138,7 @@ export default function NewsDetail() {
           )}
         </div>
         {/* Header Card */}
-        <div className="rounded-3xl shadow-2xl bg-white overflow-hidden mb-14 relative max-w-6xl mx-auto">
+        <div className="rounded-3xl shadow-2xl bg-white overflow-hidden mb-14 relative max-w-4xl mx-auto">
           <div className="relative h-64 md:h-80 flex items-end bg-gray-100">
             {data.image && (
               <img src={data.image} alt="news" className="absolute inset-0 w-full h-full object-cover object-center opacity-80" />
@@ -147,10 +147,10 @@ export default function NewsDetail() {
             <div className="relative z-10 p-10 w-full">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 {data.favicon && <img src={data.favicon} alt="favicon" className="w-8 h-8 rounded inline-block bg-white p-1" />}
-                <span className="text-white font-semibold text-xl flex items-center gap-1"><FaGlobe /> {parsedSummary.sourceDomain || data.source}</span>
-                <span className={`px-3 py-1 rounded border text-sm font-semibold ${categoryColor[cat]}`}>{parsedSummary.newsCategory || "Other"}</span>
-                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${sentimentColor[sent]}`}>{sentimentIcon[sent]}{parsedSummary.sentimentTowardBangladesh}</span>
-                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${factCheckColor[fact]}`}>{factCheckIcon[fact]}{parsedSummary.factCheck?.status || "unverified"}</span>
+                <span className="text-white font-semibold text-xl flex items-center gap-1"><FaGlobe /> {summary.source_domain || data.source}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold ${categoryColor[cat]}`}>{summary.news_category || "Other"}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${sentimentColor[sent]}`}>{sentimentIcon[sent]}{summary.sentiment_toward_bangladesh}</span>
+                <span className={`px-3 py-1 rounded border text-sm font-semibold flex items-center gap-1 ${factCheckColor[fact]}`}>{factCheckIcon[fact]}{summary.fact_check?.status || "unverified"}</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow mb-3 leading-tight">{data.title}</h1>
               <div className="flex flex-wrap gap-8 items-center text-gray-200 text-lg">
@@ -199,7 +199,7 @@ export default function NewsDetail() {
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-8 rounded-2xl shadow text-gray-800 text-lg min-h-[80px]">
             {showFullNews ? (
               <>
-                {data.text}
+            {data.text}
                 <button className="mt-4 px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition" onClick={() => setShowFullNews(false)}>
                   Show less
                 </button>
@@ -309,12 +309,12 @@ export default function NewsDetail() {
                       </ul>
                     </div>
                   )}
-                </div>
-              </div>
+          </div>
+        </div>
               {/* Score */}
               <div className="flex flex-col items-center justify-center">
-                <div className="font-semibold text-gray-700 mb-2 flex items-center gap-2 text-lg"><FaCheckCircle className="text-green-500" />Score</div>
-                <div className="text-3xl font-mono text-primary-700">{typeof data.score === "number" ? data.score.toFixed(3) : "-"}</div>
+            <div className="font-semibold text-gray-700 mb-2 flex items-center gap-2 text-lg"><FaCheckCircle className="text-green-500" />Score</div>
+            <div className="text-3xl font-mono text-primary-700">{typeof data.score === "number" ? data.score.toFixed(3) : "-"}</div>
               </div>
             </div>
           )}
@@ -373,22 +373,22 @@ export default function NewsDetail() {
             </button>
           </div>
           {showRelatedArticles && (
-            <div className="flex overflow-x-auto gap-6 pb-2">
-              {(data.related_articles || []).length === 0 ? (
-                <div className="text-gray-500">No related articles found.</div>
-              ) : (
-                (data.related_articles || []).map((art: any) => (
-                  <a key={art.id} href={`/news/${art.id}`} className="min-w-[260px] max-w-xs bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
-                    <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
-                    <div className="text-xs text-gray-500">{art.source}</div>
-                    <div className="flex gap-1 text-xs">
+          <div className="flex overflow-x-auto gap-6 pb-2">
+            {(data.related_articles || []).length === 0 ? (
+              <div className="text-gray-500">No related articles found.</div>
+            ) : (
+              (data.related_articles || []).map((art: any) => (
+                <a key={art.id} href={`/news/${art.id}`} className="min-w-[260px] max-w-xs bg-gray-50 rounded shadow p-5 hover:bg-primary-50 transition flex flex-col gap-2">
+                  <div className="font-bold text-primary-700 truncate text-lg">{art.title}</div>
+                  <div className="text-xs text-gray-500">{art.source}</div>
+                  <div className="flex gap-1 text-xs">
                       <span className={`px-2 py-0.5 rounded ${categoryColor[(art.category as keyof typeof categoryColor) || "Other"]}`}>{art.category}</span>
-                      <span className={`px-2 py-0.5 rounded ${sentimentColor[(art.sentiment as keyof typeof sentimentColor) || "Neutral"]}`}>{art.sentiment}</span>
-                    </div>
-                  </a>
-                ))
-              )}
-            </div>
+                    <span className={`px-2 py-0.5 rounded ${sentimentColor[(art.sentiment as keyof typeof sentimentColor) || "Neutral"]}`}>{art.sentiment}</span>
+                  </div>
+                </a>
+              ))
+            )}
+          </div>
           )}
         </div>
         {/* More from this source (collapsible) */}
@@ -408,7 +408,7 @@ export default function NewsDetail() {
               {data.more_from_source || "No more articles found from this source."}
             </div>
           )}
-        </div>
+          </div>
         <style jsx global>{`
           .animate-fadein { animation: fadein 0.7s; }
           @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }

@@ -12,15 +12,27 @@ import re
 from difflib import SequenceMatcher
 import spacy
 from collections import Counter
+from sqlalchemy import text
+
+# Ensure instance directory exists
+instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')
+os.makedirs(instance_path, exist_ok=True)
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///E:/SIMS Analytics/backend/instance/SIMS_Analytics.db'
+# Set up portable SQLite DB path
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(basedir, 'instance', 'SIMS_Analytics.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 print("Database URI:", app.config['SQLALCHEMY_DATABASE_URI'])
 print("Database absolute path:", os.path.abspath('instance/SIMS_Analytics.db'))
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# Initialize database if it doesn't exist
+with app.app_context():
+    db.create_all()
 
 load_dotenv()
 EXA_API_KEY = os.getenv('EXA_API_KEY')
@@ -60,8 +72,16 @@ class IntMatch(db.Model):
     source     = db.Column(db.String, nullable=False)
     url        = db.Column(db.String)
 
+def safe_capitalize(val, default='Neutral'):
+    if isinstance(val, str):
+        return val.capitalize()
+    return default
+
 def run_exa_ingestion():
-    exa = Exa(api_key="4909c8ea-feb6-4f27-bf9e-acfd9b765229")
+    if not EXA_API_KEY:
+        print("Error: EXA_API_KEY environment variable not set")
+        return
+    exa = Exa(api_key=EXA_API_KEY)
     print("Running advanced Exa ingestion for Bangladesh-related news coverage by Indian Media...")
     indian_and_bd_domains = [
         "timesofindia.indiatimes.com", "hindustantimes.com", "ndtv.com", "thehindu.com", "indianexpress.com", "indiatoday.in", "news18.com", "zeenews.india.com", "aajtak.in", "abplive.com", "jagran.com", "bhaskar.com", "livehindustan.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com", "scroll.in", "thewire.in", "wionews.com", "indiatvnews.com", "newsnationtv.com", "jansatta.com", "india.com", "bdnews24.com", "thedailystar.net", "prothomalo.com", "dhakatribune.com", "newagebd.net", "financialexpress.com.bd", "theindependentbd.com", "bbc.com", "reuters.com", "aljazeera.com", "apnews.com", "cnn.com", "nytimes.com", "theguardian.com", "france24.com", "dw.com", "factwatchbd.com", "altnews.in", "boomlive.in", "factchecker.in", "thequint.com", "factcheck.afp.com", "snopes.com", "politifact.com", "fullfact.org", "apnews.com", "factcheck.org"
@@ -274,14 +294,16 @@ def run_exa_ingestion():
             else:
                 art.source = 'Other'
             # Sentiment normalization
-            sentiment = get_field(summary, 'sentiment', default='Neutral').capitalize()
-            if sentiment not in ['Positive', 'Negative', 'Neutral', 'Cautious']:
-                sentiment = 'Neutral'
+            sentiment_val = get_field(summary, 'sentiment', default='Neutral')
+            sentiment = safe_capitalize(sentiment_val, default='Neutral')
             art.sentiment = sentiment
             # Fact check normalization
-            fact_check = get_field(summary, 'fact_check', 'factCheck', default='Unverified').capitalize()
-            if fact_check not in ['True', 'False', 'Mixed', 'Unverified']:
-                fact_check = 'Unverified'
+            fact_check_val = get_field(summary, 'fact_check', 'factCheck', default='Unverified')
+            if isinstance(fact_check_val, dict):
+                fact_check_status = fact_check_val.get('status', 'Unverified')
+            else:
+                fact_check_status = fact_check_val
+            fact_check = safe_capitalize(fact_check_status, default='Unverified')
             art.fact_check = fact_check
             # Summaries
             comp = get_field(summary, 'comparison', default={})
@@ -796,6 +818,24 @@ def indian_sources_api():
     return jsonify([
         {"domain": domain, "name": name} for domain, name in indian_sources]
     )
+
+@app.route('/api/health')
+def health_check():
+    try:
+        # Check database connection
+        db.session.execute(text('SELECT 1'))
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        print("Health check error:", e)  # Log the error for debugging
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.datetime.now().isoformat()
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True) 
