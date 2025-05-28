@@ -705,6 +705,9 @@ video {
 .mt-4 {
   margin-top: 1rem;
 }
+.ml-auto {
+  margin-left: auto;
+}
 .line-clamp-4 {
   overflow: hidden;
   display: -webkit-box;
