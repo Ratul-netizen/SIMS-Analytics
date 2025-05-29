@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# Remove old DB for a clean start every time (for development/testing)
+rm -f /app/instance/SIMS_Analytics.db
+
 # Run database migrations
 flask db upgrade
 
