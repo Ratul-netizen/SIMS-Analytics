@@ -5,14 +5,11 @@ __pycache__/
 *.pyo
 *.pyd
 instance/
-.env
-.env.*
 .DS_Store
 
 # Flask
 *.db
 *.sqlite3
-migrations/
 
 # React/Node
 node_modules/
@@ -24,8 +21,8 @@ dist/
 .env.production.local
 
 # OS
-Thumbs.db
 .DS_Store
+Thumbs.db
 
 # VSCode
 .vscode/
