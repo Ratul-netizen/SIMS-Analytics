@@ -20,6 +20,7 @@ RUN mkdir -p /app/instance && chmod 777 /app/instance
 
 # Copy application code
 COPY . .
+COPY migrations/ ./migrations/
 
 # Ensure proper permissions
 RUN chmod -R 755 /app
